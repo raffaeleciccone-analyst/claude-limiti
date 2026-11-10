@@ -1,6 +1,6 @@
 {
   "name": "claude-limiti",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Live Claude Code usage limits (5-hour and weekly) in the status line, with pace, forecast, notifications and a /limiti skill.",
   "type": "module",
   "private": true,

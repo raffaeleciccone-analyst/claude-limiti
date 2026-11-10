@@ -65,6 +65,7 @@ export const SCHEMA = {
   symbols:       { def: 'unicode', parse: oneOf(['unicode', 'ascii']) },
   language:      { def: 'auto', parse: oneOf(['auto', 'it', 'en'], { italiano: 'it', english: 'en', inglese: 'en' }) },
   diagnostics:   { def: false, parse: bool },
+  scheduled_reset: { def: false, parse: bool }, // Windows: reset notification even with every session closed
 };
 export const DEFAULTS = Object.fromEntries(Object.entries(SCHEMA).map(([k, s]) => [k, s.def]));
 
@@ -74,7 +75,7 @@ export const KEY_ALIASES = {
   spazio_tra_barre: 'gap', spazio: 'gap', parentesi: 'brackets', compatto: 'compact',
   notifiche: 'notifications', soglie: 'thresholds', mostra_contesto: 'show_context',
   mostra_costo: 'show_cost', mostra_git: 'show_git', colori: 'colors', simboli: 'symbols', lingua: 'language',
-  diagnostica: 'diagnostics',
+  diagnostica: 'diagnostics', notifica_reset_programmata: 'scheduled_reset', reset_programmato: 'scheduled_reset',
 };
 export const canonicalKey = k => {
   k = String(k).toLowerCase();

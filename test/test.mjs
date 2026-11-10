@@ -291,6 +291,32 @@ console.log('6. Several sessions, history, forecast, state');
   check(readFileSync(join(h3, 't.txt'), 'utf8').includes('azzerato'), 'reset notification is really sent');
 }
 
+{
+  // Reset notification with sessions closed: what would be scheduled is written to a file
+  const h = newHome({ language: 'it' });
+  const file = join(h, 'schedules.txt');
+  const E = { LIMITI_SCHEDULE_FILE: file };
+  const got = () => { try { return readFileSync(file, 'utf8').trim().split('\n').filter(Boolean); } catch { return []; } };
+  run(h, SL, [], input(85, 10), E);
+  check(got().length === 0, 'scheduled_reset off by default: nothing scheduled');
+  setConfig(h, { language: 'it', scheduled_reset: true });
+  run(h, SL, [], input(70, 10), E);
+  check(got().length === 0, 'below the first threshold: nothing scheduled');
+  const r = run(h, SL, [], input(85, 10), E);
+  const when = new Date((now + 5400 + 60) * 1000).toISOString();
+  check(got().length === 1 && got()[0] === 'claude-limiti reset five_hour | ' + when + ' | Claude Code · Limite 5 ore azzerato' && strip(r.stdout).includes(' 85%'), 'over the threshold: one task at reset time + 1 minute');
+  run(h, SL, [], input(90, 10), E);
+  check(got().length === 1, 'scheduled once per window');
+  const moved = JSON.parse(input(91, 10)); moved.rate_limits.five_hour.resets_at = now + 5400 + 7200;
+  run(h, SL, [], JSON.stringify(moved), E);
+  check(got().length === 2 && got()[1].startsWith('claude-limiti reset five_hour | ' + new Date((now + 5400 + 7200 + 60) * 1000).toISOString()), 'reset time changed: task moved');
+  const w = JSON.parse(input(10, 85));
+  run(h, SL, [], JSON.stringify(w), E);
+  check(got().some(l => l.startsWith('claude-limiti reset seven_day')), 'weekly window scheduled too');
+  setConfig(h, { language: 'it', notifica_reset_programmata: true });
+  check(run(h, SET).stdout.includes('scheduled_reset (notifica_reset_programmata)'), 'Italian name of the setting accepted and listed');
+}
+
 console.log('7. Layout options');
 {
   const h = newHome({ language: 'it', spazio_tra_barre: true });

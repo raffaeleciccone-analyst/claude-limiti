@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 — 2026-11-10
+
+- New setting `scheduled_reset` (Windows, off by default): when a limit passes the first threshold, a one-time Windows task shows the "limit reset" notification at the reset time even with every Claude Code session closed, then deletes itself. It shares the bar's marker, so the notification never arrives twice. Late by more than 30 minutes (computer off): it deletes itself silently.
+- `install.mjs --remove` also deletes reset tasks still waiting.
+
 ## 1.1.2 — 2026-11-10
 
 - Language "auto": on Windows the system language wins over LANG, which VS Code sets on its own (the bar was in English in the VS Code terminal).

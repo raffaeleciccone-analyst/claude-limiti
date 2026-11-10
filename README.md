@@ -80,6 +80,7 @@ node ~/.claude/skills/limiti/settings.mjs reset
 | `colors` | `auto` · `truecolor` · `256` · `none` (also off when `NO_COLOR` is set) | `auto` |
 | `symbols` | `unicode` · `ascii` (if you see boxes instead of symbols) | `unicode` |
 | `language` | `auto` · `en` · `it` | `auto` |
+| `scheduled_reset` | Windows: when a limit passes the first threshold, a one-time Windows task shows the "limit reset" notification at the reset time even with every session closed, then deletes itself | `false` |
 | `diagnostics` | logs every reading locally, to check how it works (see below) | `false` |
 
 Changes show from the next response, no restart needed. Preferences are stored in
@@ -137,7 +138,7 @@ history stay in `~/.claude`: delete them by hand if you do not need them.
 ## Development
 
 ```
-node test/test.mjs           # 219 checks, all in temporary folders
+node test/test.mjs           # 226 checks, all in temporary folders
 node tools/preview-svg.mjs   # regenerates the images in docs/
 ```
 

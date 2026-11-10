@@ -83,6 +83,7 @@ Nomi e valori si possono scrivere in italiano o in inglese.
 | `colori` (`colors`) | `auto` · `truecolor` · `256` · `nessuno` (spenti anche con `NO_COLOR`) | `auto` |
 | `simboli` (`symbols`) | `unicode` · `ascii` (se vedi quadratini al posto dei simboli) | `unicode` |
 | `lingua` (`language`) | `auto` · `it` · `en` | `auto` |
+| `notifica_reset_programmata` (`scheduled_reset`) | Windows: quando un limite supera la prima soglia, un'attività di Windows una tantum mostra la notifica di azzeramento all'ora del reset anche a sessioni chiuse, poi si cancella da sola | `no` |
 | `diagnostica` (`diagnostics`) | registra ogni lettura sul PC, per verificare il funzionamento (vedi sotto) | `no` |
 
 Le modifiche si vedono dalla risposta successiva, senza riavviare. Le preferenze sono salvate in
@@ -140,7 +141,7 @@ storico restano in `~/.claude`: cancellali a mano se non ti servono.
 ## Sviluppo
 
 ```
-node test/test.mjs           # 219 controlli, tutti in cartelle temporanee
+node test/test.mjs           # 226 controlli, tutti in cartelle temporanee
 node tools/preview-svg.mjs   # rigenera le immagini in docs/
 ```
 

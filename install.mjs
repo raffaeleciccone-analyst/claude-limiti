@@ -87,6 +87,12 @@ if (remove) {
     try { unlinkSync(PREVIOUS); } catch {}
   }
   if (existsSync(DEST) || isLink(DEST)) { rmSync(DEST, { recursive: true, force: true }); console.log(L.removedSkill(DEST)); }
+  if (process.platform === 'win32' && !process.env.LIMITI_SCHEDULE_FILE) {
+    // scheduled reset notifications still waiting
+    const { spawnSync } = await import('node:child_process');
+    const ps = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+    spawnSync(ps, ['-NoProfile', '-NonInteractive', '-Command', "Get-ScheduledTask -TaskName 'claude-limiti reset *' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false"], { stdio: 'ignore', windowsHide: true, timeout: 20000 });
+  }
   console.log(L.kept);
   process.exit(0);
 }

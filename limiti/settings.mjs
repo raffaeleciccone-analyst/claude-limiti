@@ -20,6 +20,7 @@ const T = {
       thresholds: '% a cui avvisare', show_context: 'riga con modello e contesto', show_cost: 'costo stimato della sessione',
       show_git: 'branch git', colors: 'colori (none = senza colori)', symbols: 'ascii se vedi quadratini', language: 'lingua',
       diagnostics: 'registro per verificare il funzionamento',
+      scheduled_reset: 'notifica di azzeramento anche a sessioni chiuse (Windows)',
     },
   },
   en: {
@@ -36,6 +37,7 @@ const T = {
       thresholds: '% that trigger an alert', show_context: 'line with model and context', show_cost: 'estimated session cost',
       show_git: 'git branch', colors: 'colors (none = no colors)', symbols: 'ascii if you see boxes', language: 'language',
       diagnostics: 'log to check how it works',
+      scheduled_reset: 'reset notification even with sessions closed (Windows)',
     },
   },
 };
@@ -43,7 +45,7 @@ const ALLOWED = {
   style: Object.keys(STYLES).join(' | '), width: '8-40', gap: 'true | false', brackets: 'true | false',
   compact: 'auto | always | never', notifications: 'true | false', thresholds: '80,95', show_context: 'true | false',
   show_cost: 'true | false', show_git: 'true | false', colors: 'auto | truecolor | 256 | none', symbols: 'unicode | ascii',
-  language: 'auto | it | en', diagnostics: 'true | false',
+  language: 'auto | it | en', diagnostics: 'true | false', scheduled_reset: 'true | false',
 };
 
 const user = readUserConfig();

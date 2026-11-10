@@ -51,7 +51,11 @@ node "${CLAUDE_SKILL_DIR}/settings.mjs" reset            # defaults
 ```
 
 Keys: `style`, `width`, `gap`, `brackets`, `compact`, `notifications`, `thresholds`,
-`show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`, `diagnostics`.
+`show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`, `diagnostics`, `scheduled_reset`.
+
+`scheduled_reset` (Windows): when a limit passes the first threshold, a one-time Windows task shows the
+"limit reset" notification at the reset time even if every session is closed, then deletes itself.
+Before turning it on, tell the user it creates that scheduled task and ask for an explicit yes.
 
 Checking how it works: with `diagnostics true` every reading is logged locally; after a few days
 `node "${CLAUDE_SKILL_DIR}/report.mjs" diagnostics` says whether the assumptions hold. Explain each

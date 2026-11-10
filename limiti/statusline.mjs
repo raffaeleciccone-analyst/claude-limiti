@@ -195,6 +195,17 @@ function forecast(key, w) {
 // saved, and the script WAITS for them: Claude Code ends the processes a status line leaves
 // behind, so a notification launched "in the background" was killed before it could show.
 const pendingToasts = [];
+const POWERSHELL = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+const encodePs = s => Buffer.from(s, 'utf16le').toString('base64');
+const safeText = s => String(s).replace(/[^\p{L}\p{N} .,:%()·/\-]/gu, '');
+// PowerShell that shows a Windows notification (title and msg already safe: no quotes, no < > &)
+const psToast = (title, msg) => `
+[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+$x = New-Object Windows.Data.Xml.Dom.XmlDocument
+$x.LoadXml('<toast><visual><binding template="ToastGeneric"><text>${title}</text><text>${msg}</text></binding></visual></toast>')
+$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show([Windows.UI.Notifications.ToastNotification]::new($x))`;
 function launch(cmd, args) {
   try { spawnSync(cmd, args, { cwd: tmpdir(), stdio: 'ignore', windowsHide: true, timeout: 15000 }); } catch {}
 }
@@ -203,20 +214,11 @@ function toast(title, msg) {
   pendingToasts.push([title, msg]);
 }
 function sendToast(title, msg) {
-  const safe = s => String(s).replace(/[^\p{L}\p{N} .,:%()·/\-]/gu, '');
-  title = safe(title); msg = safe(msg);
+  title = safeText(title); msg = safeText(msg);
   // Test hook: write the notification to a file instead of showing it
   if (process.env.LIMITI_TOAST_FILE) { try { appendFileSync(process.env.LIMITI_TOAST_FILE, `${title} | ${msg}\n`); } catch {} return; }
   if (process.platform === 'win32') {
-    const ps = `
-[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
-$x = New-Object Windows.Data.Xml.Dom.XmlDocument
-$x.LoadXml('<toast><visual><binding template="ToastGeneric"><text>${title}</text><text>${msg}</text></binding></visual></toast>')
-$app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
-[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show([Windows.UI.Notifications.ToastNotification]::new($x))`;
-    const exe = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-    launch(exe, ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')]);
+    launch(POWERSHELL, ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', encodePs(psToast(title, msg))]);
   } else if (process.platform === 'darwin') {
     launch('/usr/bin/osascript', ['-e', `display notification ${JSON.stringify(msg)} with title ${JSON.stringify(title)}`]);
   } else {
@@ -252,6 +254,43 @@ function checkReset(key, prev) {
   if (prev.used_percentage < Math.min(...cfg.thresholds)) return;
   if (claim(`${key}-${bucket(prev.resets_at)}-reset`)) toast(L.resetTitle(windowName(key)), L.resetBody);
 }
+// ---------- reset notification with every session closed (setting "scheduled_reset", Windows) ----------
+// When a window passes the first threshold, a one-time Windows task is set for the reset time.
+// At that time the task claims the SAME marker the bar uses (so never two notifications),
+// shows the notification, and deletes itself. If the computer was off and the notification
+// would be more than 30 minutes late, it deletes itself without showing anything.
+const pendingSchedules = [];
+const taskName = key => `claude-limiti reset ${key}`;
+function checkSchedule(key, w) {
+  if (!cfg.scheduled_reset || !w.resets_at || w.resets_at <= now + 60) return;
+  if (w.used_percentage < Math.min(...cfg.thresholds)) return;
+  if (!process.env.LIMITI_SCHEDULE_FILE && process.platform !== 'win32') return;
+  if (claim(`${key}-${bucket(w.resets_at)}-scheduled`)) pendingSchedules.push([key, w.resets_at]);
+}
+function scheduleReset(key, resetsAt) {
+  const marker = join(ALERTS_DIR, `${key}-${bucket(resetsAt)}-reset`);
+  const title = safeText(L.resetTitle(windowName(key))), msg = safeText(L.resetBody);
+  const when = new Date((resetsAt + 60) * 1000).toISOString();
+  // Test hook: write what would be scheduled instead of creating the task
+  if (process.env.LIMITI_SCHEDULE_FILE) { try { appendFileSync(process.env.LIMITI_SCHEDULE_FILE, `${taskName(key)} | ${when} | ${title}\n`); } catch {} return; }
+  const q = s => `'${String(s).replace(/'/g, "''")}'`;
+  const run = `
+$name = ${q(taskName(key))}
+if ((Get-Date) -gt ([datetime]${q(when)}).AddMinutes(30)) { Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue; exit }
+$claimed = $false
+try { New-Item -ItemType File -Path ${q(marker)} -ErrorAction Stop | Out-Null; $claimed = $true } catch {}
+if ($claimed) {${psToast(title, msg)}
+  Start-Sleep -Seconds 2
+}
+Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue`;
+  const register = `
+$a = New-ScheduledTaskAction -Execute ${q(POWERSHELL)} -Argument ${q(`-NoProfile -NonInteractive -WindowStyle Hidden -EncodedCommand ${encodePs(run)}`)}
+$t = New-ScheduledTaskTrigger -Once -At ([datetime]${q(when)})
+$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+Register-ScheduledTask -TaskName ${q(taskName(key))} -Action $a -Trigger $t -Settings $s -Description 'claude-limiti: notifica una tantum di azzeramento del limite (si cancella da sola)' -Force | Out-Null`;
+  launch(POWERSHELL, ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', encodePs(register)]);
+}
+
 function cleanupAlerts() {
   try {
     for (const f of readdirSync(ALERTS_DIR)) {
@@ -380,6 +419,7 @@ for (const key of Object.keys(W)) {
     else continue;
   }
   if (!opts.wasReset && !opts.stale && hasIncoming) checkAlerts(key, w);
+  if (!opts.wasReset && !opts.stale && fresh[key]) checkSchedule(key, w);
   items.push([key, w, opts]);
 }
 
@@ -463,4 +503,7 @@ if (cfg.diagnostics && (hasIncoming || rlIn)) {
 }
 
 // ---------- notifications last: once the bar's text has been handed over ----------
-if (pendingToasts.length) process.stdout.write('', () => { for (const [t, m] of pendingToasts) sendToast(t, m); });
+if (pendingToasts.length || pendingSchedules.length) process.stdout.write('', () => {
+  for (const [t, m] of pendingToasts) sendToast(t, m);
+  for (const [k, r] of pendingSchedules) scheduleReset(k, r);
+});
