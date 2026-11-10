@@ -502,23 +502,29 @@ console.log('12. Codex (OpenAI) limits');
   const h = newHome({ language: 'it' });
   writeCodex(h, [ev(paid(42, 15))]);
   let out = strip(run(h, SL, [], input(20, 18), CX(h)).stdout).split('\n');
-  check(out.length === 4 && /^Codex 5h .* 42%  reset \d\d:\d\d .*│ 7g .* 15%  reset /.test(out[3]), 'status line: extra Codex line with 5h and weekly');
-  check(!/dati di/.test(out[3]), 'fresh Codex data: no age shown');
+  check(out.length === 5 && /^Claude 5h ━{20}  20%/.test(out[1]) && /^Claude 7g /.test(out[2]) && /^Codex  5h ━{20}  42%  reset \d\d:\d\d/.test(out[3]) && /^Codex  7g ━{20}  15%  reset /.test(out[4]), 'with Codex: Claude and Codex rows, labelled');
+  check(out.slice(1).every(l => l.indexOf('%') === out[1].indexOf('%') && l.indexOf('reset') === out[1].indexOf('reset')), 'with Codex: % and reset aligned on every row');
+  const paceCol = out.slice(1).map(l => l.search(/[✓●▲] /));
+  check(paceCol.every(x => x > 0 && x === paceCol[0]), 'with Codex: pace column aligned: ' + paceCol.join(','));
+  check(!out.join('').includes('dati di'), 'fresh Codex data: no age shown');
   for (const cols of [40, 60, 80, 120, 160]) {
     const o = run(h, SL, [], input(20, 18), { ...CX(h), COLUMNS: String(cols) }).stdout.split('\n');
-    check(o.every(l => width(l) <= cols) && strip(o[o.length - 1]).startsWith('Codex'), `Codex line fits at ${cols} columns: ${o.map(width).join(',')}`);
+    check(o.every(l => width(l) <= cols) && strip(o[o.length - 1]).startsWith('Codex '), `Codex line fits at ${cols} columns: ${o.map(width).join(',')}`);
   }
   // layout chosen by the user: one line per window like Claude
   const lines = (hh, extra = {}) => strip(run(hh, SL, [], input(20, 18), { ...CX(hh), ...extra }).stdout).split('\n');
   setConfig(h, { language: 'it', codex_compact: 'never' });
   out = lines(h);
-  check(out.length === 5 && /^Codex 5h ━{20}  42%  reset \d\d:\d\d \(tra .*\)  . (margine ampio|nella media|consumi in fretta)/.test(out[3]) && /^Codex 7g ━{20}  15%  reset \S+ \d\d\/\d\d/.test(out[4]), 'codex_compact never: one line per window, full bar and pace');
+  check(out.length === 5 && /^Codex  5h ━{20}  42%  reset \d\d:\d\d \(tra .*\) +. (margine ampio|nella media|consumi in fretta)/.test(out[3]) && /^Codex  7g ━{20}  15%  reset \S+ \d\d\/\d\d/.test(out[4]), 'codex_compact never: one line per window, full bar and pace');
   for (const cols of [40, 60, 80, 120]) {
     const o = run(h, SL, [], input(20, 18), { ...CX(h), COLUMNS: String(cols) }).stdout.split('\n');
     check(o.every(l => width(l) <= cols), `codex_compact never fits at ${cols} columns: ${o.map(width).join(',')}`);
   }
   setConfig(h, { language: 'it', codex_compact: 'auto' });
   check(lines(h).length === 5 && lines(h, { COLUMNS: '60' }).length === 3, 'codex_compact auto: expanded when wide, one line when narrow');
+  setConfig(h, { language: 'it', codex_compact: 'always' });
+  out = lines(h);
+  check(out.length === 4 && /^Claude 5h ━{20}/.test(out[1]) && /^Codex  5h ━{8}  42%.*│ 7g/.test(out[3]), 'codex_compact always: Claude expanded, Codex on one line');
   setConfig(h, { language: 'it', compact: 'always', codex_compact: 'always' });
   check(lines(h).length === 3, 'everything on one line each: compact always + codex_compact always');
   check(run(h, SET, ['codex_compatto', 'mai']).stdout.includes('codex_compact = never') && run(h, SET, ['codex_compact', 'boh']).status === 1, 'settings: codex_compact (alias codex_compatto) validated');
@@ -530,14 +536,14 @@ console.log('12. Codex (OpenAI) limits');
   const hw = newHome({ language: 'it' });
   writeCodex(hw, [ev(free(3))]);
   out = strip(run(hw, SL, [], JSON.stringify({ cost: { total_api_duration_ms: 0 } }), CX(hw)).stdout).split('\n');
-  check(out.some(l => l.includes('in attesa')) && /^Codex 30g .*  3%  reset \w+ \d\d\/\d\d/.test(out[out.length - 1]), 'Codex only: Claude still "waiting", Codex 30-day line with the date');
+  check(out.some(l => /^Claude limiti: in attesa/.test(l)) && /^Codex  30g ━{20}   3%  reset \S+ \d\d\/\d\d/.test(out[out.length - 1]), 'Codex only: Claude still "waiting", Codex 30-day line with the date');
 
   // stale and reset windows
   const hs = newHome({ language: 'it' });
   writeCodex(hs, [ev({ ...paid(60, 30), primary: { used_percent: 85, window_minutes: 300, resets_at: now - 120 } }, now - 7200)]);
   const toastFile = join(hs, 't.txt');
   out = strip(run(hs, SL, [], input(20, 18), { ...CX(hs), LIMITI_NO_NOTIFICHE: '', LIMITI_TOAST_FILE: toastFile }).stdout).split('\n');
-  check(/^Codex 5h .*  0%  azzerato/.test(out[3]) && out[3].includes('dati di 2h'), 'expired Codex window shows "azzerato", old data shows its age');
+  check(/^Codex  5h .*  0%  azzerato/.test(out[3]) && out[4].includes('dati di 2h'),'expired Codex window shows "azzerato", old data shows its age');
   let toasts = existsSync(toastFile) ? readFileSync(toastFile, 'utf8') : '';
   check(toasts.includes('Codex · Limite 5h azzerato') && !toasts.includes('7g'), 'Codex reset notification sent; weekly at 30% no alert');
 
@@ -554,16 +560,16 @@ console.log('12. Codex (OpenAI) limits');
   writeCodex(hr, [ev(paid(10, 10), now - 3000)], { day: '10', mtime: now - 3000 });
   writeCodex(hr, [ev(paid(55, 10), now - 60)], { day: '02', name: 'rollout-2026-11-02T09-00-00-old.jsonl', mtime: now - 60 });
   out = strip(run(hr, SL, [], input(20, 18), CX(hr)).stdout);
-  check(/Codex 5h .* 55%/.test(out), 'resumed old session (older folder, newer data) wins');
+  check(/Codex  5h .* 55%/.test(out),'resumed old session (older folder, newer data) wins');
   if (typeof zlib.zstdCompressSync === 'function') {
     const hz = newHome({ language: 'en' });
     writeCodex(hz, [ev(free(21))], { name: 'rollout-2026-11-10T10-00-00-z.jsonl.zst' });
-    check(/Codex 30d .* 21%/.test(strip(run(hz, SL, [], input(20, 18), CX(hz)).stdout)), 'compressed session (.jsonl.zst) read');
+    check(/Codex  30d .* 21%/.test(strip(run(hz, SL, [], input(20, 18), CX(hz)).stdout)), 'compressed session (.jsonl.zst) read');
   }
   // a huge session: only the end is read
   const hb = newHome({ language: 'en' });
   writeCodex(hb, [ev(paid(1, 1), now - 500), ...Array(3000).fill(JSON.stringify({ ...other, pad: 'x'.repeat(600) })), ev(paid(33, 2))]);
-  check(/Codex 5h .* 33%/.test(strip(run(hb, SL, [], input(20, 18), CX(hb)).stdout)), 'large session file (2 MB): latest value read from the end');
+  check(/Codex  5h .* 33%/.test(strip(run(hb, SL, [], input(20, 18), CX(hb)).stdout)), 'large session file (2 MB): latest value read from the end');
 
   // report
   let rep = run(h, REPORT, [], '', CX(h)).stdout; // show_codex false

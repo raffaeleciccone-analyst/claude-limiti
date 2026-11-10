@@ -85,7 +85,7 @@ node ~/.claude/skills/limiti/settings.mjs reset
 | `scheduled_reset` | Windows: when a limit passes the first threshold, a one-time Windows task shows the "limit reset" notification at the reset time even with every session closed, then deletes itself | `false` |
 | `diagnostics` | logs every reading locally, to check how it works (see below) | `false` |
 | `show_codex` | line with the Codex (OpenAI) limits; shown only if you use Codex | `true` |
-| `codex_compact` | Codex all on one line (`always`), one line per limit with bars and pace like Claude (`never`), or `auto` (one line on narrow terminals) | `always` |
+| `codex_compact` | with Codex every row starts with `Claude` or `Codex` and the columns line up; `auto`: one line per limit, a single line on narrow terminals · `always`: Codex all on one line · `never`: never on one line | `auto` |
 
 Changes show from the next response, no restart needed. Preferences are stored in
 `~/.claude/statusline-limiti.config.json`.

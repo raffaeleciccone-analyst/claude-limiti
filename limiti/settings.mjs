@@ -22,7 +22,7 @@ const T = {
       diagnostics: 'registro per verificare il funzionamento',
       scheduled_reset: 'notifica di azzeramento anche a sessioni chiuse (Windows)',
       show_codex: 'riga con i limiti di Codex (OpenAI), se lo usi',
-      codex_compact: 'Codex su una riga sola (sempre) o una riga per limite come Claude (mai)',
+      codex_compact: 'Codex su una riga sola (sempre), una riga per limite (mai) o in base alla larghezza (auto)',
     },
   },
   en: {
@@ -41,7 +41,7 @@ const T = {
       diagnostics: 'log to check how it works',
       scheduled_reset: 'reset notification even with sessions closed (Windows)',
       show_codex: 'line with the Codex (OpenAI) limits, if you use it',
-      codex_compact: 'Codex on one line (always) or one line per limit like Claude (never)',
+      codex_compact: 'Codex on one line (always), one line per limit (never) or by terminal width (auto)',
     },
   },
 };

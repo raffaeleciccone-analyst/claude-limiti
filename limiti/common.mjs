@@ -67,7 +67,7 @@ export const SCHEMA = {
   diagnostics:   { def: false, parse: bool },
   scheduled_reset: { def: false, parse: bool }, // Windows: reset notification even with every session closed
   show_codex:    { def: true, parse: bool },  // extra line with the OpenAI Codex limits, only if Codex is used
-  codex_compact: { def: 'always', parse: oneOf(['auto', 'always', 'never'], { sempre: 'always', mai: 'never' }) }, // Codex on one line, or one line per window
+  codex_compact: { def: 'auto', parse: oneOf(['auto', 'always', 'never'], { sempre: 'always', mai: 'never' }) }, // Codex on one line, or one line per window
 };
 export const DEFAULTS = Object.fromEntries(Object.entries(SCHEMA).map(([k, s]) => [k, s.def]));
 

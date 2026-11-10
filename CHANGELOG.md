@@ -7,7 +7,7 @@
   length (5h + weekly on paid plans, 30 days on Free).
 - Claude Code bar: one more `Codex` line only when Codex was used in the last 24 hours (report: 7 days), with threshold and reset notifications
   (new setting `show_codex`, on by default; nothing changes without Codex).
-- New setting `codex_compact` (`always` by default): Codex on one line, or one line per limit like Claude (`never`).
+- With Codex, every row starts with `Claude` or `Codex` and bars, %, reset and pace line up (without Codex the bar is unchanged). New setting `codex_compact` (`auto` by default, `always`, `never`).
 - `/limiti` report: Codex section with pace and daily budget; works with Codex data only too.
 - `install.mjs --codex` installs a skill for Codex in `~/.agents/skills/limiti` (never automatic); `--remove` removes it. Someone else's `limiti` skill is never overwritten.
 

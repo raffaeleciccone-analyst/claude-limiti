@@ -436,81 +436,125 @@ if (spPct != null) {
   spendLine = `${c(SOFT, '$ ')} ${bar(p, barW)} ${pctColor(p)}${BOLD}${String(Math.round(p)).padStart(3)}%${R}${txt ? `  ${c(SOFT, txt)}` : ''}`;
 }
 
-const limitLines = [];
-if (compact && items.length) {
-  limitLines.push(fit(l => items.map(([k, w, o]) => limitLine(k, w, 5 + l, barW, o)).join(SEP), 3));
-} else {
-  for (const [k, w, o] of items) limitLines.push(fit(l => limitLine(k, w, Math.min(l, 5), l < 6 ? barW : 8, o), 7));
-}
-if (spendLine) limitLines.push(spendLine);
-
 // ---------- Codex (OpenAI) limits, read from its session files: shown only if used ----------
 // Codex has no status line of its own to customize, so its limits are shown here too.
 // Each window has its own length (5h + 7d on paid plans, 30d on Free).
-const codexLines = [];
+let cxWins = [], cxAge = 0;
 if (cfg.show_codex) {
   let cx = null;
   try { cx = readCodex(); } catch {}
   // Only for people who USE Codex: a response in the last 24 hours. An old test session
   // (e.g. a 30-day Free window still running) must not put a line in everyone's bar.
-  const wins = (cx && now - cx.t < 86400 ? cx.windows : []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
-  if (wins.length) {
-    const age = now - cx.t;
-    for (const w of wins) {
+  cxWins = (cx && now - cx.t < 86400 ? cx.windows : []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
+  if (cxWins.length) {
+    cxAge = now - cx.t;
+    for (const w of cxWins) {
       const k = `codex_${Math.round((w.len || 0) / 60)}m`, lbl = windowLabel(w.len, lang);
       if (w.resets_at > now) {
-        if (!w.len || age < w.len) checkAlerts(k, w, (n, p) => L.codexAlert(lbl, p));
+        if (!w.len || cxAge < w.len) checkAlerts(k, w, (n, p) => L.codexAlert(lbl, p));
       } else if (now - w.resets_at <= 600 && w.used_percentage >= Math.min(...cfg.thresholds) && claim(`${k}-${bucket(w.resets_at)}-reset`)) {
         toast(L.codexReset(lbl), L.resetBody);
       }
     }
-    // Layout chosen by the user (setting codex_compact): one line, or one line per window like Claude
-    const codexCompact = cfg.codex_compact === 'always' || (cfg.codex_compact === 'auto' && compact);
-    const stale = level => (age > 600 && level < 1 ? c(GREY, `  ${L.stale(dur(age))}`) : '');
-    if (codexCompact) codexLines.push(fit(level => {
-      const parts = wins.map(w => {
-        const lbl = windowLabel(w.len, lang);
-        if (w.resets_at <= now) return `${c(SOFT, lbl)} ${bar(0, 8)} ${pctColor(0)}${BOLD}  0%${R}  ${c(GREEN, L.wasResetShort)}`;
-        const p = w.used_percentage, shown = p < 100 ? Math.min(99, Math.round(p)) : Math.round(p);
-        if (level >= 4) return `${c(SOFT, lbl)} ${pctColor(p)}${BOLD}${shown}%${R}`;
-        let s = `${c(SOFT, lbl)} ${bar(p, 8)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
-        if (level >= 3) return s;
-        const when = w.resets_at - now > 6 * 86400 && level < 2 ? fullDate(w.resets_at) : clock(w.resets_at); // like Claude's compact line; the date only when a weekday is ambiguous
-        return p >= 100 ? `${s}  ${c(RED, `${BOLD}${L.exhausted}`)} ${c(SOFT, when)}` : `${s}  ${c(SOFT, `${L.reset} ${when}`)}`;
-      });
-      return `${c(VIOLET, 'Codex')} ${parts.join(SEP)}${stale(level)}`;
-    }, 5));
-    else wins.forEach((w, i) => codexLines.push(fit(level => {
-      const lbl = windowLabel(w.len, lang), long = (w.len || 0) > 86400;
-      const width = level < 6 ? barW : 8;
-      const head = `${c(VIOLET, 'Codex')} ${c(SOFT, lbl)} `;
-      if (w.resets_at <= now) return `${head}${bar(0, width)} ${pctColor(0)}${BOLD}  0%${R}  ${c(GREEN, level < 5 ? L.wasReset : L.wasResetShort)}`;
-      const p = w.used_percentage, shown = p < 100 ? Math.min(99, Math.round(p)) : Math.round(p);
-      let s = `${head}${bar(p, width)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
-      if (level >= 6) return s;
-      const when = long && level < 5 ? fullDate(w.resets_at) : clock(w.resets_at);
-      if (p >= 100) return `${s}  ${c(RED, `${BOLD}${L.exhausted}`)}${level < 2 ? c(SOFT, ` ${L.until(when, dur(w.resets_at - now))}`) : c(SOFT, ` ${when}`)}`;
-      s += `  ${c(SOFT, `${L.reset} ${when}`)}`;
-      if (level < 2) s += c(GREY, ` ${L.in(dur(w.resets_at - now))}`);
-      if (level < 4 && w.len) {
-        const pt = paceText(p, Math.min(1, Math.max(0, 1 - (w.resets_at - now) / w.len)));
-        if (pt) s += `  ${level < 3 ? pt.full : pt.short}`;
-      }
-      if (long && level < 1) {
-        const days = (w.resets_at - now) / 86400;
-        if (days >= 1) s += c(SOFT, ` ${S.dot} ${L.perDay(Math.round((100 - p) / days))}`);
-      }
-      return s + (i === wins.length - 1 ? stale(level) : '');
-    }, 7)));
   }
 }
+// Without Codex the bar is exactly as always. With Codex every row starts with "Claude" or
+// "Codex" and the columns (bar, %, reset, pace) line up across both.
+const codexOn = cxWins.length > 0;
+const codexCompact = cfg.codex_compact === 'always' || (cfg.codex_compact === 'auto' && compact);
+const tag = (name, col) => (codexOn ? `${c(col, name.padEnd(6))} ` : '');
+const CLAUDE_COL = [217, 119, 87];
+const cxStale = level => (cxAge > 600 && level < 1 ? c(GREY, `  ${L.stale(dur(cxAge))}`) : '');
 
-if (!limitLines.length) {
+// Rows of the aligned table: Claude windows (unless compact), then Codex windows (unless codex_compact)
+const rows = [];
+if (codexOn && !compact) for (const [k, w, o] of items) rows.push({ name: 'Claude', col: CLAUDE_COL, key: k, lbl: k === 'seven_day' ? L.d7 : L.h5, len: W[k].len, w, o });
+if (codexOn && !codexCompact) cxWins.forEach((w, i) => rows.push({ name: 'Codex', col: VIOLET, key: null, lbl: windowLabel(w.len, lang), len: w.len || 0, w, o: { wasReset: w.resets_at <= now }, last: i === cxWins.length - 1 }));
+
+// The plain "reset …" text of a row at a level (null when the row shows something else)
+function resetPart(r, level) {
+  const w = r.w;
+  if (r.o.wasReset || !w.resets_at || level >= 6 || w.used_percentage >= 100) return null;
+  const when = r.len > 86400 && level < 5 ? fullDate(w.resets_at) : clock(w.resets_at);
+  return { reset: `${L.reset} ${when}`, in: level < 2 ? ` ${L.in(dur(w.resets_at - now))}` : '' };
+}
+function tableRow(r, level, lblW, resetW) {
+  const w = r.w, p = r.o.wasReset ? 0 : w.used_percentage;
+  const shown = p < 100 ? Math.min(99, Math.round(p)) : Math.round(p);
+  let s = `${tag(r.name, r.col)}${c(SOFT, r.lbl.padEnd(lblW))} ${bar(p, level < 6 ? barW : 8)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
+  if (r.o.wasReset) return level >= 7 ? s : `${s}  ${c(GREEN, level < 5 ? L.wasReset : L.wasResetShort)}${r.last ? cxStale(level) : ''}`;
+  if (!w.resets_at || level >= 6) return s;
+  if (p >= 100) {
+    const when = r.len > 86400 && level < 5 ? fullDate(w.resets_at) : clock(w.resets_at);
+    return `${s}  ${c(RED, `${BOLD}${L.exhausted}`)}${level < 2 ? c(SOFT, ` ${L.until(when, dur(w.resets_at - now))}`) : c(SOFT, ` ${when}`)}`;
+  }
+  // what follows the reset time
+  let tail = '';
+  if (r.o.stale) tail = c(GREY, L.stale(dur(now - r.o.stale)));
+  else if (level < 4) {
+    const f = r.key ? forecast(r.key, w) : null;
+    if (f?.runsOut) {
+      const t = r.len > 86400 ? fullDate(f.eta) : clock(f.eta);
+      tail = level < 3 ? c(RED, `${S.warn} ${L.runsOut(r.len > 86400 ? t : L.at(t))}`) : c(RED, `${S.warn} ${t}`);
+    } else if (r.len) {
+      const pt = paceText(p, Math.min(1, Math.max(0, 1 - (w.resets_at - now) / r.len)));
+      if (pt) tail = level < 3 ? pt.full : pt.short;
+    }
+    if (r.len > 86400 && level < 1 && (w.resets_at - now) >= 86400) tail += c(SOFT, ` ${S.dot} ${L.perDay(Math.round((100 - p) / ((w.resets_at - now) / 86400)))}`);
+  }
+  if (r.last) tail += cxStale(level);
+  const rp = resetPart(r, level);
+  const pad = tail ? ' '.repeat(Math.max(0, resetW - rp.reset.length - rp.in.length)) : '';
+  return `${s}  ${c(SOFT, rp.reset)}${rp.in ? c(GREY, rp.in) : ''}${pad}${tail ? `  ${tail}` : ''}`;
+}
+// One level for the whole table, so the columns stay aligned: the first one where every row fits
+function table() {
+  if (!rows.length) return [];
+  const lblW = Math.max(...rows.map(r => r.lbl.length));
+  let out = [];
+  for (let level = 0; level < 8; level++) {
+    const resetW = Math.max(0, ...rows.map(r => { const rp = resetPart(r, level); return rp ? rp.reset.length + rp.in.length : 0; }));
+    out = rows.map(r => tableRow(r, level, lblW, resetW));
+    if (out.every(l => visible(l) <= MAXW)) break;
+  }
+  return out;
+}
+
+const limitLines = [];
+if (!codexOn) {
+  if (compact && items.length) limitLines.push(fit(l => items.map(([k, w, o]) => limitLine(k, w, 5 + l, barW, o)).join(SEP), 3));
+  else for (const [k, w, o] of items) limitLines.push(fit(l => limitLine(k, w, Math.min(l, 5), l < 6 ? barW : 8, o), 7));
+} else if (compact && items.length) {
+  // with the name in front there is less room: last resort, numbers only
+  const nums = ([k, w, o]) => `${c(SOFT, k === 'seven_day' ? L.d7 : L.h5)} ${pctColor(o.wasReset ? 0 : w.used_percentage)}${BOLD}${Math.round(o.wasReset ? 0 : w.used_percentage)}%${R}`;
+  limitLines.push(fit(l => tag('Claude', CLAUDE_COL) + items.map(it => (l < 3 ? limitLine(it[0], it[1], 5 + l, barW, it[2]) : nums(it))).join(SEP), 4));
+}
+const tableLines = table();
+// Claude rows of the table first
+limitLines.push(...tableLines.slice(0, rows.filter(r => r.name === 'Claude').length));
+
+if (!items.length && !spendLine) {
   // No limits yet. With API-key accounts they never arrive: say so instead of "waiting".
   const answered = num(d.cost?.total_api_duration_ms) > 0;
-  limitLines.push(fit(l => c(GREY, answered ? (l ? L.unavailableShort : L.unavailable) : (l ? L.waitingShort : L.waiting)), 2));
+  limitLines.push(fit(l => tag('Claude', CLAUDE_COL) + c(GREY, answered ? (l ? L.unavailableShort : L.unavailable) : (l ? L.waitingShort : L.waiting)), 2));
 }
-limitLines.push(...codexLines);
+
+if (codexOn && codexCompact) limitLines.push(fit(level => {
+  const parts = cxWins.map(w => {
+    const lbl = windowLabel(w.len, lang);
+    if (w.resets_at <= now) return `${c(SOFT, lbl)} ${bar(0, 8)} ${pctColor(0)}${BOLD}  0%${R}  ${c(GREEN, L.wasResetShort)}`;
+    const p = w.used_percentage, shown = p < 100 ? Math.min(99, Math.round(p)) : Math.round(p);
+    if (level >= 4) return `${c(SOFT, lbl)} ${pctColor(p)}${BOLD}${shown}%${R}`;
+    const s = `${c(SOFT, lbl)} ${bar(p, 8)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
+    if (level >= 3) return s;
+    const when = w.resets_at - now > 6 * 86400 && level < 2 ? fullDate(w.resets_at) : clock(w.resets_at); // like Claude's compact line; the date only when a weekday is ambiguous
+    return p >= 100 ? `${s}  ${c(RED, `${BOLD}${L.exhausted}`)} ${c(SOFT, when)}` : `${s}  ${c(SOFT, `${L.reset} ${when}`)}`;
+  });
+  return `${tag('Codex', VIOLET)}${parts.join(SEP)}${cxStale(level)}`;
+}, 5));
+else limitLines.push(...tableLines.slice(rows.filter(r => r.name === 'Claude').length));
+
+if (spendLine) limitLines.push(spendLine);
 
 if (cfg.gap && !compact) limitLines.forEach((l, i) => { if (i) lines.push('\u2800'); lines.push(l); }); // U+2800: invisible but not whitespace, so it is kept
 else lines.push(...limitLines);
