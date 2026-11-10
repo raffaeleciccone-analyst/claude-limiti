@@ -136,7 +136,7 @@ history stay in `~/.claude`: delete them by hand if you do not need them.
 ## Development
 
 ```
-node test/test.mjs           # 212 checks, all in temporary folders
+node test/test.mjs           # 218 checks, all in temporary folders
 node tools/preview-svg.mjs   # regenerates the images in docs/
 ```
 

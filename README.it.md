@@ -139,7 +139,7 @@ storico restano in `~/.claude`: cancellali a mano se non ti servono.
 ## Sviluppo
 
 ```
-node test/test.mjs           # 212 controlli, tutti in cartelle temporanee
+node test/test.mjs           # 218 controlli, tutti in cartelle temporanee
 node tools/preview-svg.mjs   # rigenera le immagini in docs/
 ```
 

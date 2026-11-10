@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 — 2026-11-10
+
+- Fix: notifications never showed when launched by Claude Code. They were started in the background and Claude Code ended them together with the status line. Now they are sent at the end and the status line waits for them (only when there is one to send).
+- Tests now check that notifications are really sent, once per threshold and at reset.
+
 ## 1.1.0 — 2026-11-10
 
 - Simpler and safer rule with several sessions: a reading counts only if it is fresh (the session just got a response) or if nothing better is stored. A session seen for the first time can no longer bring old values back.

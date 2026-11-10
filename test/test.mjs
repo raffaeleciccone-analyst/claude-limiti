@@ -256,6 +256,31 @@ console.log('6. Several sessions, history, forecast, state');
   check(alerts(h2).length === 2, 'first seen at 97%: one alert, both thresholds marked');
 }
 
+{
+  // Notifications really sent (written to a file instead of the screen), once each
+  const h = newHome({ language: 'it' });
+  const file = join(h, 'toasts.txt');
+  const N = { LIMITI_NO_NOTIFICHE: '', LIMITI_TOAST_FILE: file };
+  const sent = () => { try { return readFileSync(file, 'utf8').trim().split('\n').filter(Boolean); } catch { return []; } };
+  run(h, SL, [], input(70, 10), N);
+  check(sent().length === 0, 'no notification below the thresholds');
+  const r = run(h, SL, [], input(83, 10), N);
+  check(sent().length === 1 && sent()[0].includes('Limite 5 ore al 83%') && strip(r.stdout).includes(' 83%'), 'notification at 80% is really sent, and the bar is still printed');
+  run(h, SL, [], input(86, 10), N);
+  check(sent().length === 1, 'the same threshold is not notified twice');
+  run(h, SL, [], input(96, 10), N);
+  check(sent().length === 2 && sent()[1].includes('al 96%'), 'notification at 95%');
+  setConfig(h, { language: 'it', notifications: false });
+  const h2 = newHome({ language: 'it', notifications: false });
+  run(h2, SL, [], input(99, 10), { ...N, LIMITI_TOAST_FILE: join(h2, 't.txt') });
+  check(!existsSync(join(h2, 't.txt')), 'notifications off: nothing sent');
+  const h3 = newHome({ language: 'it' });
+  mkdirSync(join(h3, '.claude', 'state'));
+  writeFileSync(statePath(h3), JSON.stringify({ ultimi: { five_hour: { used_percentage: 90, resets_at: now - 60 } } }));
+  run(h3, SL, [], input(null, 18), { ...N, LIMITI_TOAST_FILE: join(h3, 't.txt') });
+  check(readFileSync(join(h3, 't.txt'), 'utf8').includes('azzerato'), 'reset notification is really sent');
+}
+
 console.log('7. Layout options');
 {
   const h = newHome({ language: 'it', spazio_tra_barre: true });

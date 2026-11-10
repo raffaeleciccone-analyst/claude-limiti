@@ -5,7 +5,7 @@
 import { readFileSync, existsSync, statSync, openSync, closeSync, readdirSync, unlinkSync, mkdirSync, appendFileSync, renameSync } from 'node:fs';
 import { join, dirname, basename, resolve, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   STATE_DIR, STATE_FILE, ALERTS_DIR, DIAG_FILE, STYLES, SYMBOLS, loadConfig, detectLanguage, formatters,
   clean, num, writeAtomic,
@@ -191,17 +191,22 @@ function forecast(key, w) {
 // ---------- notifications (Windows, macOS, Linux with notify-send) ----------
 // Absolute paths and a neutral working directory: a "powershell.exe" placed in the
 // project folder must never be the one that runs.
+// Notifications are QUEUED and sent at the very end, after the bar is printed and the state
+// saved, and the script WAITS for them: Claude Code ends the processes a status line leaves
+// behind, so a notification launched "in the background" was killed before it could show.
+const pendingToasts = [];
 function launch(cmd, args) {
-  try {
-    const p = spawn(cmd, args, { cwd: tmpdir(), detached: true, stdio: 'ignore', windowsHide: true });
-    p.on('error', () => {});
-    p.unref();
-  } catch {}
+  try { spawnSync(cmd, args, { cwd: tmpdir(), stdio: 'ignore', windowsHide: true, timeout: 15000 }); } catch {}
 }
 function toast(title, msg) {
   if (!cfg.notifications || process.env.LIMITI_NO_NOTIFICHE) return;
+  pendingToasts.push([title, msg]);
+}
+function sendToast(title, msg) {
   const safe = s => String(s).replace(/[^\p{L}\p{N} .,:%()·/\-]/gu, '');
   title = safe(title); msg = safe(msg);
+  // Test hook: write the notification to a file instead of showing it
+  if (process.env.LIMITI_TOAST_FILE) { try { appendFileSync(process.env.LIMITI_TOAST_FILE, `${title} | ${msg}\n`); } catch {} return; }
   if (process.platform === 'win32') {
     const ps = `
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -456,3 +461,6 @@ if (cfg.diagnostics && (hasIncoming || rlIn)) {
     }) + '\n');
   } catch {}
 }
+
+// ---------- notifications last: once the bar's text has been handed over ----------
+if (pendingToasts.length) process.stdout.write('', () => { for (const [t, m] of pendingToasts) sendToast(t, m); });
