@@ -1,0 +1,112 @@
+#!/usr/bin/env node
+// Installs (or removes) the /limiti skill and the usage-limits status line for Claude Code.
+//   node install.mjs            install or update
+//   node install.mjs --force    replace a status line configured by something else (it is saved and restored on --remove)
+//   node install.mjs --remove   uninstall (keeps preferences and history)
+// Italian aliases: --forza, --rimuovi
+const [major] = process.versions.node.split('.').map(Number);
+if (major < 18) {
+  console.error(`claude-limiti needs Node.js 18 or later (you have ${process.versions.node}).`);
+  process.exit(1);
+}
+
+const { cpSync, existsSync, readFileSync, rmSync, copyFileSync, lstatSync, unlinkSync } = await import('node:fs');
+const { join, dirname } = await import('node:path');
+const { fileURLToPath } = await import('node:url');
+const { CLAUDE_DIR, loadConfig, detectLanguage, writeAtomic } = await import('./limiti/common.mjs');
+
+const T = {
+  it: {
+    badJson: f => `${f} non è un JSON valido: correggilo e riprova. Non ho cambiato nulla.`,
+    notObject: f => `${f} non contiene un oggetto JSON: correggilo e riprova. Non ho cambiato nulla.`,
+    foreign: s => `Hai già una status line configurata:\n  ${s}\nNon la tocco. Per sostituirla esegui: node install.mjs --force\n(la salvo e la rimetto se un giorno disinstalli).`,
+    skill: d => `Skill installata in ${d}`,
+    saved: f => `Status line precedente salvata in ${f}`,
+    backup: f => `Copia di sicurezza di settings.json: ${f}`,
+    enabled: 'Status line attivata in settings.json.',
+    oddPath: p => `Attenzione: il percorso ${p} contiene caratteri speciali ($ ` + '`' + ` % !). Se la barra non compare, installa da un utente senza questi caratteri nel nome.`,
+    done: 'Fatto. Riavvia Claude Code: i limiti compaiono dopo la prima risposta.\nPer personalizzare la barra chiedi a Claude, per esempio "/limiti cambia lo stile della barra".',
+    restored: 'Status line precedente ripristinata.', removedSl: 'Status line rimossa da settings.json.',
+    removedSkill: d => `Skill rimossa: ${d}`,
+    kept: 'Preferenze e storico restano in ~/.claude (statusline-limiti.config.json, state/limiti-*): cancellali a mano se non servono.',
+  },
+  en: {
+    badJson: f => `${f} is not valid JSON: fix it and try again. Nothing was changed.`,
+    notObject: f => `${f} does not contain a JSON object: fix it and try again. Nothing was changed.`,
+    foreign: s => `You already have a status line configured:\n  ${s}\nLeaving it alone. To replace it run: node install.mjs --force\n(it is saved and put back if you ever uninstall).`,
+    skill: d => `Skill installed in ${d}`,
+    saved: f => `Previous status line saved in ${f}`,
+    backup: f => `Backup of settings.json: ${f}`,
+    enabled: 'Status line enabled in settings.json.',
+    oddPath: p => `Warning: the path ${p} contains special characters ($ ` + '`' + ` % !). If the bar does not show up, install from a user whose name has none of them.`,
+    done: 'Done. Restart Claude Code: the limits appear after the first response.\nTo customize the bar ask Claude, e.g. "/limiti change the bar style".',
+    restored: 'Previous status line restored.', removedSl: 'Status line removed from settings.json.',
+    removedSkill: d => `Skill removed: ${d}`,
+    kept: 'Preferences and history stay in ~/.claude (statusline-limiti.config.json, state/limiti-*): delete them by hand if you do not need them.',
+  },
+};
+const L = T[detectLanguage(loadConfig())];
+
+const args = process.argv.slice(2);
+const force = args.includes('--force') || args.includes('--forza');
+const remove = args.includes('--remove') || args.includes('--rimuovi');
+
+const SRC = join(dirname(fileURLToPath(import.meta.url)), 'limiti');
+const DEST = join(CLAUDE_DIR, 'skills', 'limiti');
+const SETTINGS = join(CLAUDE_DIR, 'settings.json');
+const BACKUP = SETTINGS + '.bak-limiti';
+const PREVIOUS = join(CLAUDE_DIR, 'statusline-limiti.precedente.json');
+const LEGACY = join(CLAUDE_DIR, 'statusline-limiti.mjs'); // script location of early versions
+
+const script = join(DEST, 'statusline.mjs').replace(/\\/g, '/');
+// Windows: double quotes (forward slashes work in cmd, PowerShell and Git Bash).
+// Elsewhere: single quotes, so a home folder containing $ or ` is never expanded by the shell.
+const COMMAND = process.platform === 'win32' ? `node "${script}"` : `node '${script.replace(/'/g, `'\\''`)}'`;
+const ours = sl => typeof sl?.command === 'string' && (/skills[\\/]limiti[\\/]statusline\.mjs/.test(sl.command) || /[\\/]statusline-limiti\.mjs["']?\s*$/.test(sl.command));
+
+let settings = {};
+if (existsSync(SETTINGS)) {
+  try { settings = JSON.parse(readFileSync(SETTINGS, 'utf8')); }
+  catch { console.error(L.badJson(SETTINGS)); process.exit(1); }
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) { console.error(L.notObject(SETTINGS)); process.exit(1); }
+}
+function saveSettings() {
+  // The first backup is never overwritten: it is the state before claude-limiti
+  if (existsSync(SETTINGS) && !existsSync(BACKUP)) { copyFileSync(SETTINGS, BACKUP); console.log(L.backup(BACKUP)); }
+  writeAtomic(SETTINGS, JSON.stringify(settings, null, 2) + '\n');
+}
+const isLink = p => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
+
+if (remove) {
+  if (ours(settings.statusLine)) {
+    let prev = null;
+    try { prev = JSON.parse(readFileSync(PREVIOUS, 'utf8')); } catch {}
+    if (prev && typeof prev === 'object') { settings.statusLine = prev; console.log(L.restored); }
+    else { delete settings.statusLine; console.log(L.removedSl); }
+    saveSettings();
+    try { unlinkSync(PREVIOUS); } catch {}
+  }
+  if (existsSync(DEST) || isLink(DEST)) { rmSync(DEST, { recursive: true, force: true }); console.log(L.removedSkill(DEST)); }
+  console.log(L.kept);
+  process.exit(0);
+}
+
+const current = settings.statusLine;
+if (current && !ours(current)) {
+  if (!force) { console.error(L.foreign(JSON.stringify(current))); process.exit(1); }
+  writeAtomic(PREVIOUS, JSON.stringify(current, null, 2) + '\n'); console.log(L.saved(PREVIOUS));
+}
+
+// Fresh copy, so files removed in newer versions do not linger
+if (existsSync(DEST) || isLink(DEST)) rmSync(DEST, { recursive: true, force: true });
+cpSync(SRC, DEST, { recursive: true });
+console.log(L.skill(DEST));
+
+const keep = ours(current) ? current : {}; // keeps e.g. "padding" set by the user
+settings.statusLine = { ...keep, type: 'command', command: COMMAND, refreshInterval: keep.refreshInterval ?? 60 };
+saveSettings();
+console.log(L.enabled);
+if (process.platform === 'win32' && /[$`%!]/.test(script)) console.log(L.oddPath(script));
+if (ours(current) && /statusline-limiti\.mjs/.test(current.command) && existsSync(LEGACY)) { try { unlinkSync(LEGACY); } catch {} }
+
+console.log(`\n${L.done}`);
