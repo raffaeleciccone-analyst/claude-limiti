@@ -21,9 +21,9 @@ Always reply in the user's language, in a few simple lines.
 4. The Codex section says how old the data is: it only updates when Codex is used. If it is hours
    old, say so; the limit may have moved since.
 5. Give at most one tip, only when useful:
-   - a window used much faster than the time elapsed (more than 10 points above the pace) →
+   - a window used much faster than the time elapsed (more than 10 points above the pace) ->
      spread the work, or switch to a lighter model / lower reasoning effort for simple tasks;
-   - everything on pace or below → just say so.
+   - everything on pace or below -> just say so.
 
 ## Settings
 

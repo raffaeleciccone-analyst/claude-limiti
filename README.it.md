@@ -110,8 +110,8 @@ disegnate larghe due colonne e si sovrappongono al testo), così tutto resta all
 
 ## Codex (OpenAI)
 
-*Sperimentale: provato su una sessione reale con piano Free e sul formato del codice sorgente di
-Codex, non ancora su un uso quotidiano. Segnalazioni benvenute.*
+*Sperimentale: provato il 10/11/2026 con Codex 0.167 (piano Free, app per Windows): dati veri letti,
+skill usata da Codex da sola. Non ancora su un uso quotidiano né su piani a pagamento. Segnalazioni benvenute.*
 
 Codex (CLI, estensione per l'editor e app) scrive i suoi limiti nei file delle sessioni, in
 `~/.codex/sessions` (o `$CODEX_HOME`), dopo ogni risposta, solo se hai fatto l'accesso con un

@@ -107,8 +107,8 @@ columns wide and overlap the text), so everything stays aligned.
 
 ## Codex (OpenAI)
 
-*Experimental: tested on a real Free-plan session and against the format in Codex's source code,
-not yet in daily use. Reports welcome.*
+*Experimental: tested on 2026-11-10 with Codex 0.167 (Free plan, Windows app): real data read,
+skill picked up by Codex on its own. Not yet in daily use nor on paid plans. Reports welcome.*
 
 Codex (CLI, IDE extension and app) writes its limits into its session files, in
 `~/.codex/sessions` (or `$CODEX_HOME`), after every response, when you are signed in with a
