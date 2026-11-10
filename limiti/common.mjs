@@ -109,9 +109,13 @@ export function saveUserConfig(cfg) {
 // ---------- language ----------
 export function detectLanguage(cfg) {
   if (cfg.language === 'it' || cfg.language === 'en') return cfg.language;
+  let system = '';
+  try { system = Intl.DateTimeFormat().resolvedOptions().locale; } catch {}
+  // On Windows LANG is not a user setting: VS Code, Git Bash and others set it on their own
+  // (e.g. en_US when VS Code is in English). The system language is what the user chose.
+  if (process.platform === 'win32' && system) return /^it/i.test(system) ? 'it' : 'en';
   const env = process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || '';
-  let loc = env && env !== 'C' && env !== 'POSIX' ? env : '';
-  if (!loc) { try { loc = Intl.DateTimeFormat().resolvedOptions().locale; } catch {} }
+  const loc = env && env !== 'C' && env !== 'POSIX' ? env : system;
   return /^it/i.test(loc) ? 'it' : 'en';
 }
 

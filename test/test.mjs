@@ -109,6 +109,16 @@ for (const [name, inp, expect] of cases) {
   check(o.includes('7d ') && o.includes('resets') && o.includes('per day available'), 'English output');
 }
 
+{
+  // Language "auto": on Windows the system language wins over LANG (VS Code sets LANG on its own)
+  const h = newHome({});
+  const sys = /^it/i.test(Intl.DateTimeFormat().resolvedOptions().locale) ? 'it' : 'en';
+  const o = strip(run(h, SL, [], input(20, 18), { LANG: sys === 'it' ? 'en_US.UTF-8' : 'it_IT.UTF-8' }).stdout);
+  const shown = o.includes('7g ') ? 'it' : 'en';
+  if (process.platform === 'win32') check(shown === sys, 'Windows: system language wins over LANG set by VS Code');
+  else check(shown === (sys === 'it' ? 'en' : 'it'), 'macOS/Linux: LANG decides the language');
+}
+
 console.log('4. Safety: escape sequences, git, sizes');
 {
   const h = newHome({ language: 'it' });
