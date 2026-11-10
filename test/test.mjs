@@ -96,7 +96,7 @@ const cases = [
   ['spend limit without dollars', input(10, 10, { rate_limits: { spend_limit: { used_percentage: 63 } } }), o => o.includes(' 63%') && !o.includes('undefined')],
   ['cost as text does not crash', input(10, 10, { cost: { total_cost_usd: 'abc' } }), o => o.includes('5h')],
   ['wrong types everywhere', JSON.stringify({ model: 5, effort: 'x', workspace: { current_dir: 7 }, rate_limits: { five_hour: { used_percentage: '30', resets_at: String(now + 999) }, seven_day: 'x' } }), o => o.includes(' 30%')],
-  ['no emoji in context line', input(20, 18), o => !WIDE.test(o) && o.includes('» fast') && o.includes('◷ 1h30m')],
+  ['no emoji in context line', input(20, 18), o => !WIDE.test(o) && o.includes('» fast') && o.includes('◷ 1h:30m')],
 ];
 for (const [name, inp, expect] of cases) {
   const h = newHome({ language: 'it' });

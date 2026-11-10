@@ -130,7 +130,7 @@ export function formatters(lang) {
     const h = Math.floor(s / 3600); s -= h * 3600;
     const m = Math.floor(s / 60);
     if (g) return `${g}${day} ${h}h`;
-    if (h) return spaced ? `${h}h ${m}m` : `${h}h${p2(m)}m`;
+    if (h) return `${h}h:${p2(m)}m`; // e.g. "2h:58m"
     return `${m}m`;
   };
   // "14:20" today, "Tue 14:20" another day

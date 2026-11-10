@@ -4,6 +4,7 @@
 
 - Fix: notifications never showed when launched by Claude Code. They were started in the background and Claude Code ended them together with the status line. Now they are sent at the end and the status line waits for them (only when there is one to send).
 - Tests now check that notifications are really sent, once per threshold and at reset.
+- Durations with hours and minutes are written as `2h:58m` everywhere.
 
 ## 1.1.0 — 2026-11-10
 
