@@ -508,6 +508,20 @@ console.log('12. Codex (OpenAI) limits');
     const o = run(h, SL, [], input(20, 18), { ...CX(h), COLUMNS: String(cols) }).stdout.split('\n');
     check(o.every(l => width(l) <= cols) && strip(o[o.length - 1]).startsWith('Codex'), `Codex line fits at ${cols} columns: ${o.map(width).join(',')}`);
   }
+  // layout chosen by the user: one line per window like Claude
+  const lines = (hh, extra = {}) => strip(run(hh, SL, [], input(20, 18), { ...CX(hh), ...extra }).stdout).split('\n');
+  setConfig(h, { language: 'it', codex_compact: 'never' });
+  out = lines(h);
+  check(out.length === 5 && /^Codex 5h ━{20}  42%  reset \d\d:\d\d \(tra .*\)  . (margine ampio|nella media|consumi in fretta)/.test(out[3]) && /^Codex 7g ━{20}  15%  reset \S+ \d\d\/\d\d/.test(out[4]), 'codex_compact never: one line per window, full bar and pace');
+  for (const cols of [40, 60, 80, 120]) {
+    const o = run(h, SL, [], input(20, 18), { ...CX(h), COLUMNS: String(cols) }).stdout.split('\n');
+    check(o.every(l => width(l) <= cols), `codex_compact never fits at ${cols} columns: ${o.map(width).join(',')}`);
+  }
+  setConfig(h, { language: 'it', codex_compact: 'auto' });
+  check(lines(h).length === 5 && lines(h, { COLUMNS: '60' }).length === 3, 'codex_compact auto: expanded when wide, one line when narrow');
+  setConfig(h, { language: 'it', compact: 'always', codex_compact: 'always' });
+  check(lines(h).length === 3, 'everything on one line each: compact always + codex_compact always');
+  check(run(h, SET, ['codex_compatto', 'mai']).stdout.includes('codex_compact = never') && run(h, SET, ['codex_compact', 'boh']).status === 1, 'settings: codex_compact (alias codex_compatto) validated');
   setConfig(h, { language: 'it', show_codex: false });
   out = strip(run(h, SL, [], input(20, 18), CX(h)).stdout);
   check(!out.includes('Codex'), 'show_codex false hides the line');

@@ -444,10 +444,10 @@ if (compact && items.length) {
 }
 if (spendLine) limitLines.push(spendLine);
 
-// ---------- Codex (OpenAI) limits, read from its session files: one extra line if used ----------
+// ---------- Codex (OpenAI) limits, read from its session files: shown only if used ----------
 // Codex has no status line of its own to customize, so its limits are shown here too.
 // Each window has its own length (5h + 7d on paid plans, 30d on Free).
-let codexLine = null;
+const codexLines = [];
 if (cfg.show_codex) {
   let cx = null;
   try { cx = readCodex(); } catch {}
@@ -464,7 +464,10 @@ if (cfg.show_codex) {
         toast(L.codexReset(lbl), L.resetBody);
       }
     }
-    codexLine = fit(level => {
+    // Layout chosen by the user (setting codex_compact): one line, or one line per window like Claude
+    const codexCompact = cfg.codex_compact === 'always' || (cfg.codex_compact === 'auto' && compact);
+    const stale = level => (age > 600 && level < 1 ? c(GREY, `  ${L.stale(dur(age))}`) : '');
+    if (codexCompact) codexLines.push(fit(level => {
       const parts = wins.map(w => {
         const lbl = windowLabel(w.len, lang);
         if (w.resets_at <= now) return `${c(SOFT, lbl)} ${bar(0, 8)} ${pctColor(0)}${BOLD}  0%${R}  ${c(GREEN, L.wasResetShort)}`;
@@ -472,12 +475,33 @@ if (cfg.show_codex) {
         if (level >= 4) return `${c(SOFT, lbl)} ${pctColor(p)}${BOLD}${shown}%${R}`;
         let s = `${c(SOFT, lbl)} ${bar(p, 8)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
         if (level >= 3) return s;
-        const when = (w.len || 0) > 86400 && level < 2 ? fullDate(w.resets_at) : clock(w.resets_at);
+        const when = w.resets_at - now > 6 * 86400 && level < 2 ? fullDate(w.resets_at) : clock(w.resets_at); // like Claude's compact line; the date only when a weekday is ambiguous
         return p >= 100 ? `${s}  ${c(RED, `${BOLD}${L.exhausted}`)} ${c(SOFT, when)}` : `${s}  ${c(SOFT, `${L.reset} ${when}`)}`;
       });
-      const stale = age > 600 && level < 1 ? c(GREY, `  ${L.stale(dur(age))}`) : '';
-      return `${c(VIOLET, 'Codex')} ${parts.join(SEP)}${stale}`;
-    }, 5);
+      return `${c(VIOLET, 'Codex')} ${parts.join(SEP)}${stale(level)}`;
+    }, 5));
+    else wins.forEach((w, i) => codexLines.push(fit(level => {
+      const lbl = windowLabel(w.len, lang), long = (w.len || 0) > 86400;
+      const width = level < 6 ? barW : 8;
+      const head = `${c(VIOLET, 'Codex')} ${c(SOFT, lbl)} `;
+      if (w.resets_at <= now) return `${head}${bar(0, width)} ${pctColor(0)}${BOLD}  0%${R}  ${c(GREEN, level < 5 ? L.wasReset : L.wasResetShort)}`;
+      const p = w.used_percentage, shown = p < 100 ? Math.min(99, Math.round(p)) : Math.round(p);
+      let s = `${head}${bar(p, width)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
+      if (level >= 6) return s;
+      const when = long && level < 5 ? fullDate(w.resets_at) : clock(w.resets_at);
+      if (p >= 100) return `${s}  ${c(RED, `${BOLD}${L.exhausted}`)}${level < 2 ? c(SOFT, ` ${L.until(when, dur(w.resets_at - now))}`) : c(SOFT, ` ${when}`)}`;
+      s += `  ${c(SOFT, `${L.reset} ${when}`)}`;
+      if (level < 2) s += c(GREY, ` ${L.in(dur(w.resets_at - now))}`);
+      if (level < 4 && w.len) {
+        const pt = paceText(p, Math.min(1, Math.max(0, 1 - (w.resets_at - now) / w.len)));
+        if (pt) s += `  ${level < 3 ? pt.full : pt.short}`;
+      }
+      if (long && level < 1) {
+        const days = (w.resets_at - now) / 86400;
+        if (days >= 1) s += c(SOFT, ` ${S.dot} ${L.perDay(Math.round((100 - p) / days))}`);
+      }
+      return s + (i === wins.length - 1 ? stale(level) : '');
+    }, 7)));
   }
 }
 
@@ -486,7 +510,7 @@ if (!limitLines.length) {
   const answered = num(d.cost?.total_api_duration_ms) > 0;
   limitLines.push(fit(l => c(GREY, answered ? (l ? L.unavailableShort : L.unavailable) : (l ? L.waitingShort : L.waiting)), 2));
 }
-if (codexLine) limitLines.push(codexLine);
+limitLines.push(...codexLines);
 
 if (cfg.gap && !compact) limitLines.forEach((l, i) => { if (i) lines.push('\u2800'); lines.push(l); }); // U+2800: invisible but not whitespace, so it is kept
 else lines.push(...limitLines);

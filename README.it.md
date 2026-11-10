@@ -88,6 +88,7 @@ Nomi e valori si possono scrivere in italiano o in inglese.
 | `notifica_reset_programmata` (`scheduled_reset`) | Windows: quando un limite supera la prima soglia, un'attività di Windows una tantum mostra la notifica di azzeramento all'ora del reset anche a sessioni chiuse, poi si cancella da sola | `no` |
 | `diagnostica` (`diagnostics`) | registra ogni lettura sul PC, per verificare il funzionamento (vedi sotto) | `no` |
 | `mostra_codex` (`show_codex`) | riga con i limiti di Codex (OpenAI); compare solo se usi Codex | `sì` |
+| `codex_compatto` (`codex_compact`) | Codex tutto su una riga (`sempre`), una riga per limite con barre e ritmo come Claude (`mai`), oppure come `compatto` (`auto`: una riga sola nei terminali stretti) | `sempre` |
 
 Le modifiche si vedono dalla risposta successiva, senza riavviare. Le preferenze sono salvate in
 `~/.claude/statusline-limiti.config.json`.

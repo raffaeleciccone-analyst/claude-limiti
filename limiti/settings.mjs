@@ -22,6 +22,7 @@ const T = {
       diagnostics: 'registro per verificare il funzionamento',
       scheduled_reset: 'notifica di azzeramento anche a sessioni chiuse (Windows)',
       show_codex: 'riga con i limiti di Codex (OpenAI), se lo usi',
+      codex_compact: 'Codex su una riga sola (sempre) o una riga per limite come Claude (mai)',
     },
   },
   en: {
@@ -40,6 +41,7 @@ const T = {
       diagnostics: 'log to check how it works',
       scheduled_reset: 'reset notification even with sessions closed (Windows)',
       show_codex: 'line with the Codex (OpenAI) limits, if you use it',
+      codex_compact: 'Codex on one line (always) or one line per limit like Claude (never)',
     },
   },
 };
@@ -47,7 +49,7 @@ const ALLOWED = {
   style: Object.keys(STYLES).join(' | '), width: '8-40', gap: 'true | false', brackets: 'true | false',
   compact: 'auto | always | never', notifications: 'true | false', thresholds: '80,95', show_context: 'true | false',
   show_cost: 'true | false', show_git: 'true | false', colors: 'auto | truecolor | 256 | none', symbols: 'unicode | ascii',
-  language: 'auto | it | en', diagnostics: 'true | false', scheduled_reset: 'true | false', show_codex: 'true | false',
+  language: 'auto | it | en', diagnostics: 'true | false', scheduled_reset: 'true | false', show_codex: 'true | false', codex_compact: 'auto | always | never',
 };
 
 const user = readUserConfig();

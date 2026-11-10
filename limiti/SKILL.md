@@ -54,7 +54,9 @@ node "${CLAUDE_SKILL_DIR}/settings.mjs" reset            # defaults
 
 Keys: `style`, `width`, `gap`, `brackets`, `compact`, `notifications`, `thresholds`,
 `show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`, `diagnostics`, `scheduled_reset`,
-`show_codex` (extra line with the Codex limits, shown only when Codex is used).
+`show_codex` (extra line with the Codex limits, shown only when Codex is used), `codex_compact`
+(Codex on one line, or one line per limit like Claude). "Everything on one line" = `compact always`
+plus `codex_compact always`.
 
 `scheduled_reset` (Windows): when a limit passes the first threshold, a one-time Windows task shows the
 "limit reset" notification at the reset time even if every session is closed, then deletes itself.
