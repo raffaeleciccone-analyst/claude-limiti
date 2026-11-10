@@ -32,7 +32,7 @@ function render(lang) {
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 function toSvg(ansi) {
   const lines = ansi.split('\n');
-  const CW = 7.75, LH = 22, PAD = 18, FS = 14;
+  const CW = 8.45, LH = 22, PAD = 18, FS = 14;
   let maxCols = 0;
   const rows = lines.map((line, i) => {
     let color = '#d4d4d8', bold = false, out = '', cols = 0;
