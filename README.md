@@ -90,6 +90,7 @@ columns wide and overlap the text), so everything stays aligned.
 
 ## Troubleshooting
 
+- **VS Code: no bar in the graphical panel.** The Claude Code panel in VS Code does not run custom status lines (checked with Claude Code 2.1.322). Run `claude` in the VS Code integrated terminal, or turn on *Extensions → Claude Code → Use Terminal*.
 - **No bar at all.** Restart Claude Code. Check that `node --version` works in your terminal.
   Run the script by hand: `echo {} | node ~/.claude/skills/limiti/statusline.mjs` should print
   "limits: waiting for the first response".
@@ -136,7 +137,7 @@ history stay in `~/.claude`: delete them by hand if you do not need them.
 ## Development
 
 ```
-node test/test.mjs           # 218 checks, all in temporary folders
+node test/test.mjs           # 219 checks, all in temporary folders
 node tools/preview-svg.mjs   # regenerates the images in docs/
 ```
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2 — 2026-11-10
+
+- Language "auto": on Windows the system language wins over LANG, which VS Code sets on its own (the bar was in English in the VS Code terminal).
+- README: the VS Code graphical panel does not run custom status lines; use the integrated terminal or "Use Terminal".
+
 ## 1.1.1 — 2026-11-10
 
 - Fix: notifications never showed when launched by Claude Code. They were started in the background and Claude Code ended them together with the status line. Now they are sent at the end and the status line waits for them (only when there is one to send).

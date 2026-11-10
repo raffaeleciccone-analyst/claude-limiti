@@ -93,6 +93,7 @@ disegnate larghe due colonne e si sovrappongono al testo), così tutto resta all
 
 ## Problemi comuni
 
+- **VS Code: niente barra nel pannello grafico.** Il pannello di Claude Code in VS Code non esegue le status line personalizzate (verificato con Claude Code 2.1.322). Lancia `claude` nel terminale integrato di VS Code, oppure attiva *Estensioni → Claude Code → Use Terminal*.
 - **Non vedo la barra.** Riavvia Claude Code. Controlla che `node --version` funzioni nel
   terminale. Prova lo script a mano: `echo {} | node ~/.claude/skills/limiti/statusline.mjs`
   deve scrivere "limiti: in attesa della prima risposta".
@@ -139,7 +140,7 @@ storico restano in `~/.claude`: cancellali a mano se non ti servono.
 ## Sviluppo
 
 ```
-node test/test.mjs           # 218 controlli, tutti in cartelle temporanee
+node test/test.mjs           # 219 controlli, tutti in cartelle temporanee
 node tools/preview-svg.mjs   # rigenera le immagini in docs/
 ```
 
