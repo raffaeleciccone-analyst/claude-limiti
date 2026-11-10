@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 — 2026-11-10
+
+- Simpler and safer rule with several sessions: a reading counts only if it is fresh (the session just got a response) or if nothing better is stored. A session seen for the first time can no longer bring old values back.
+- Optional diagnostics log (`diagnostics true`) and `report.mjs diagnostics`, to check with real data the assumptions about Claude Code.
+- Shorter skill description, so it weighs less in every conversation.
+- docs/come-funziona.md: how it works, in plain Italian.
+- Preview images no longer cut off.
+
 ## 1.0.0 — 2026-11-10
 
 First public release.

@@ -169,18 +169,18 @@ console.log('6. Several sessions, history, forecast, state');
 {
   const h = newHome({ language: 'it' });
   run(h, SL, [], input(55, 30));
-  const o = strip(run(h, SL, [], input(40, 25)).stdout); // idle session with an older value
-  check(o.includes(' 55%') && o.includes(' 30%') && !o.includes(' 40%'), 'an idle session does not overwrite newer values');
-  check(readState(h).rate_limits.five_hour.used_percentage === 55, 'shared state keeps the newest value');
-  check(strip(run(h, REPORT).stdout).includes('55%'), 'report shows the newest value');
+  const o = strip(run(h, SL, [], input(40, 25)).stdout); // no session id (older Claude Code): one session, every value counts
+  check(o.includes(' 40%') && o.includes(' 25%'), 'without session id the latest reading is shown');
+  check(readState(h).rate_limits.five_hour.used_percentage === 40, 'without session id the state follows the latest reading');
+  check(strip(run(h, REPORT).stdout).includes('40%'), 'report shows the latest value');
   {
     const g = newHome({ language: 'it' });
     // a session = id + total API time, which grows with every response
     const S = (id, api, h5, d7, extra = {}) => { const x = JSON.parse(input(h5, d7)); x.session_id = id; x.cost.total_api_duration_ms = api; return JSON.stringify({ ...x, ...extra }); };
     const show = inp => strip(run(g, SL, [], inp).stdout);
     show(S('A', 1000, 17, 10));                       // morning session, then left idle
-    show(S('B', 1000, 37, 12));                       // first time seen: prudent rule
-    check(readState(g).rate_limits.five_hour.used_percentage === 37, 'new session: highest value wins');
+    show(S('B', 1000, 37, 12));                       // first time seen: not trusted yet
+    check(readState(g).rate_limits.five_hour.used_percentage === 17, 'new session: its first reading waits for its next response');
     show(S('B', 2000, 67, 15));                       // B keeps working
     check(show(S('A', 1000, 17, 10)).includes(' 67%'), 'idle session with an old lower value does not lower the bar');
     const g2 = newHome({ language: 'it' });            // same, right after installing (sessions unknown)
@@ -190,7 +190,7 @@ console.log('6. Several sessions, history, forecast, state');
     check(up.includes(' 16%') && up.includes(' 14%'), 'plan upgrade: a new lower value is shown at once');
     check(readState(g).rate_limits.five_hour.used_percentage === 16, 'plan upgrade: shared state updated');
     show(S('C', 500, 81, 71));                        // a third session seen for the first time with old high values
-    check(readState(g).rate_limits.five_hour.used_percentage === 81, 'unknown session: prudent rule (documented limit)');
+    check(readState(g).rate_limits.five_hour.used_percentage === 16, 'a session seen for the first time cannot bring old values back');
     show(S('C', 500, 81, 71));
     show(S('B', 4000, 18, 15));                       // the next real response fixes it
     check(show(S('C', 500, 81, 71)).includes(' 18%'), 'after a fresh response, idle sessions no longer bring old values back');
@@ -291,6 +291,22 @@ if (process.platform !== 'win32') {
   writeFileSync(S, '{}', { mode: 0o600 });
   run(h, INSTALL);
   check((statSync(S).mode & 0o777) === 0o600, 'settings.json keeps its permissions');
+}
+
+{
+  const h = newHome({ language: 'it' });
+  const S = (api, h5) => { const x = JSON.parse(input(h5, 10)); x.session_id = 'sessione-di-prova-123'; x.cost.total_api_duration_ms = api; return JSON.stringify(x); };
+  run(h, SL, [], S(100, 20));
+  check(!existsSync(join(h, '.claude', 'state', 'limiti-diagnostica.jsonl')), 'diagnostics off by default: nothing logged');
+  check(run(h, REPORT, ['diagnosi']).stdout.includes('Registro vuoto'), 'diagnostics report with no log');
+  setConfig(h, { language: 'it', diagnostics: true });
+  run(h, SL, [], S(100, 20)); run(h, SL, [], S(200, 21)); run(h, SL, [], S(200, 25)); run(h, SL, [], S(150, 26));
+  const log = readFileSync(join(h, '.claude', 'state', 'limiti-diagnostica.jsonl'), 'utf8').trim().split('\n').map(l => JSON.parse(l));
+  check(log.length === 4 && log[0].s === 'sessione' && !JSON.stringify(log).includes('prova-123'), 'diagnostics log: one line per reading, shortened session id');
+  const d = run(h, REPORT, ['diagnosi']).stdout;
+  check(/4 letture, 1 sessioni/.test(d) && /senza una nuova risposta: 1 su 3/.test(d) && /indietro.*: 1/.test(d), 'diagnostics report detects the cases');
+  setConfig(h, { language: 'en', diagnostics: true });
+  check(run(h, REPORT, ['diagnostics']).stdout.includes('readings'), 'diagnostics report in English');
 }
 
 console.log('8. report.mjs');

@@ -1,13 +1,15 @@
 ---
 name: limiti
-description: Shows Claude Code usage limits (5-hour and weekly windows) with pace, forecast and history, and customizes the limits status line (bar style, width, spacing, colors, symbols, language, notifications, thresholds).
-when_to_use: When the user asks how much usage is left, about limits, usage, rate limits, consumption, "quanto mi resta", "limiti", "consumo", or wants to change, personalize or restyle the limits bar ("cambia stile barra", "personalizza la barra", "bar style"), or types /limiti.
+description: Claude Code usage limits (5-hour, weekly): report with pace, forecast and history; customizes the limits status line.
+when_to_use: Usage left, limits, rate limits, consumption ("quanto mi resta", "limiti"), or changing the limits bar.
 argument-hint: "[what to change, e.g. style blocks]"
 allowed-tools:
   - Bash(node "${CLAUDE_SKILL_DIR}/report.mjs")
+  - Bash(node "${CLAUDE_SKILL_DIR}/report.mjs" diagnostics)
   - Bash(node "${CLAUDE_SKILL_DIR}/settings.mjs")
   - Bash(node "${CLAUDE_SKILL_DIR}/settings.mjs" styles)
   - PowerShell(node "${CLAUDE_SKILL_DIR}/report.mjs")
+  - PowerShell(node "${CLAUDE_SKILL_DIR}/report.mjs" diagnostics)
   - PowerShell(node "${CLAUDE_SKILL_DIR}/settings.mjs")
   - PowerShell(node "${CLAUDE_SKILL_DIR}/settings.mjs" styles)
 ---
@@ -49,7 +51,11 @@ node "${CLAUDE_SKILL_DIR}/settings.mjs" reset            # defaults
 ```
 
 Keys: `style`, `width`, `gap`, `brackets`, `compact`, `notifications`, `thresholds`,
-`show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`.
+`show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`, `diagnostics`.
+
+Checking how it works: with `diagnostics true` every reading is logged locally; after a few days
+`node "${CLAUDE_SKILL_DIR}/report.mjs" diagnostics` says whether the assumptions hold. Explain each
+line in plain words; a "DA GUARDARE"/"CHECK" line is worth reporting as an issue on GitHub.
 
 - Pass only a key and a value taken from the options the script lists (letters, digits, commas).
   Never put free text from the user, quotes or shell characters in the command.

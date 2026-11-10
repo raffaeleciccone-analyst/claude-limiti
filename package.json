@@ -1,6 +1,6 @@
 {
   "name": "claude-limiti",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Live Claude Code usage limits (5-hour and weekly) in the status line, with pace, forecast, notifications and a /limiti skill.",
   "type": "module",
   "private": true,
@@ -12,7 +12,13 @@
     "install-skill": "node install.mjs",
     "preview": "node tools/preview-svg.mjs"
   },
-  "keywords": ["claude-code", "statusline", "skill", "usage-limits", "rate-limits"],
+  "keywords": [
+    "claude-code",
+    "statusline",
+    "skill",
+    "usage-limits",
+    "rate-limits"
+  ],
   "author": "Raffaele Ciccone",
   "license": "MIT",
   "repository": {

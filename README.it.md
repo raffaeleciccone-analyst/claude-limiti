@@ -83,6 +83,7 @@ Nomi e valori si possono scrivere in italiano o in inglese.
 | `colori` (`colors`) | `auto` · `truecolor` · `256` · `nessuno` (spenti anche con `NO_COLOR`) | `auto` |
 | `simboli` (`symbols`) | `unicode` · `ascii` (se vedi quadratini al posto dei simboli) | `unicode` |
 | `lingua` (`language`) | `auto` · `it` · `en` | `auto` |
+| `diagnostica` (`diagnostics`) | registra ogni lettura sul PC, per verificare il funzionamento (vedi sotto) | `no` |
 
 Le modifiche si vedono dalla risposta successiva, senza riavviare. Le preferenze sono salvate in
 `~/.claude/statusline-limiti.config.json`.
@@ -101,6 +102,22 @@ disegnate larghe due colonne e si sovrappongono al testo), così tutto resta all
 - **Colori strani.** Prova `colori 256`, oppure `colori nessuno`.
 - **Niente notifiche su Linux.** Installa `notify-send` (pacchetto `libnotify-bin` o `libnotify`).
   Su Windows le notifiche risultano inviate da "Windows PowerShell".
+
+## Come funziona
+
+Una spiegazione semplice, dal dato che arriva a quello che vedi: [docs/come-funziona.md](docs/come-funziona.md).
+
+## Verificare il funzionamento
+
+La barra si basa su alcune cose che Claude Code non documenta, per esempio come distinguere
+un dato fresco da uno vecchio quando ci sono più sessioni aperte. Per verificarle con i tuoi
+dati accendi `diagnostica`, usa Claude Code per qualche giorno e poi esegui:
+
+```
+node ~/.claude/skills/limiti/report.mjs diagnosi
+```
+
+Ogni riga dice OK o DA GUARDARE. Un DA GUARDARE merita una segnalazione su GitHub.
 
 ## Privacy e sicurezza
 
@@ -122,7 +139,7 @@ storico restano in `~/.claude`: cancellali a mano se non ti servono.
 ## Sviluppo
 
 ```
-node test/test.mjs           # 207 controlli, tutti in cartelle temporanee
+node test/test.mjs           # 212 controlli, tutti in cartelle temporanee
 node tools/preview-svg.mjs   # rigenera le immagini in docs/
 ```
 

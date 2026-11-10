@@ -2,12 +2,12 @@
 // Line 1: model, effort, folder, git branch, context, cache, duration, cost
 // Lines 2-3: 5-hour and weekly limits with bar, reset time, pace and forecast
 // Keeps state and history in ~/.claude/state/ for the /limiti skill and for notifications.
-import { readFileSync, existsSync, statSync, openSync, closeSync, readdirSync, unlinkSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, openSync, closeSync, readdirSync, unlinkSync, mkdirSync, appendFileSync, renameSync } from 'node:fs';
 import { join, dirname, basename, resolve, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import {
-  STATE_DIR, STATE_FILE, ALERTS_DIR, STYLES, SYMBOLS, loadConfig, detectLanguage, formatters,
+  STATE_DIR, STATE_FILE, ALERTS_DIR, DIAG_FILE, STYLES, SYMBOLS, loadConfig, detectLanguage, formatters,
   clean, num, writeAtomic,
 } from './common.mjs';
 
@@ -129,35 +129,26 @@ function readState() {
 }
 const st = readState();
 
-// Several sessions share the state. Claude Code keeps passing an idle session the last
-// limits it received, which may be much older than what another session just got.
-// The session's total API time grows with every response, so it tells the cases apart:
-// - "fresh": this session just got a response → take its limits as they are, even if
-//   lower (plan upgrade, account switch, early reset);
-// - "idle": known session, no new response → ignore its (old) limits while the stored
-//   ones are valid;
-// - "unknown": first time we see the session, or no session id / API time →
-//   prudent rule: highest value in the same window, the later window across windows.
-function newest(a, b) {
-  if (!a) return b || null;
-  if (!b) return a;
-  if (SAME(a.resets_at, b.resets_at)) return a.used_percentage >= b.used_percentage ? a : b;
-  return (a.resets_at ?? 0) > (b.resets_at ?? 0) ? a : b;
-}
+// Several sessions share the state, and Claude Code keeps passing an idle session the
+// last limits IT received, which may be hours old. One rule decides what to trust:
+//   a value counts if it is FRESH, or if there is nothing better.
+// Fresh = this session just got a response: its total API time grew since we last saw it.
+// "Nothing better" = no stored value, or the stored one belongs to a window already reset.
+// Without a session id or API time (older Claude Code) every value counts, as with one session.
 const W = { five_hour: { len: 5 * 3600, key: 'h5', rk: 'r5' }, seven_day: { len: 7 * 86400, key: 'd7', rk: 'r7' } };
 const sid = typeof d.session_id === 'string' && d.session_id ? clean(d.session_id, 80) : null;
 const seen = sid ? st.sessioni[sid] : null;
 const apiTime = num(d.cost?.total_api_duration_ms);
-const status = !sid || apiTime == null || !seen || num(seen.a) == null ? 'unknown' : apiTime > seen.a ? 'fresh' : 'idle';
+const trackable = !!sid && apiTime != null;
+const isFresh = !trackable || (num(seen?.a) != null && apiTime > seen.a);
 const cur = {}, fresh = {};
 for (const k of Object.keys(W)) {
-  fresh[k] = !!incoming[k] && status === 'fresh';
+  fresh[k] = !!incoming[k] && isFresh;
   cur[k] = incoming[k] ? pick(incoming[k], readWindow(st.rate_limits?.[k])) : null;
 }
 function pick(inc, stored) {
-  if (status === 'fresh') return inc;
-  if (status === 'idle') return stored && stored.resets_at > now ? stored : inc;
-  return newest(inc, stored);
+  if (isFresh) return inc;
+  return stored && stored.resets_at > now ? stored : inc;
 }
 const hasIncoming = !!(incoming.five_hour || incoming.seven_day);
 
@@ -451,3 +442,17 @@ try {
   }
   if (Math.random() < 0.05) cleanupAlerts();
 } catch {}
+
+// ---------- optional diagnostics log (setting "diagnostics") ----------
+// One line per reading, only numbers and a shortened session id; capped at about 2 MB.
+if (cfg.diagnostics && (hasIncoming || rlIn)) {
+  try {
+    mkdirSync(STATE_DIR, { recursive: true });
+    try { if (statSync(DIAG_FILE).size > 2e6) renameSync(DIAG_FILE, DIAG_FILE + '.old'); } catch {}
+    const w = x => (x ? [x.used_percentage, x.resets_at] : null);
+    appendFileSync(DIAG_FILE, JSON.stringify({
+      t: Math.floor(now), s: sid ? sid.slice(0, 8) : null, a: apiTime,
+      h5: w(incoming.five_hour), d7: w(incoming.seven_day), f: isFresh ? 1 : 0,
+    }) + '\n');
+  } catch {}
+}

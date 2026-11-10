@@ -9,6 +9,8 @@ export const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.cla
 export const STATE_DIR = join(CLAUDE_DIR, 'state');
 export const STATE_FILE = join(STATE_DIR, 'limiti-utilizzo.json');
 export const ALERTS_DIR = join(STATE_DIR, 'limiti-avvisi');
+// Optional log of what Claude Code sends, to check our assumptions with real data
+export const DIAG_FILE = join(STATE_DIR, 'limiti-diagnostica.jsonl');
 // Outside the skill folder, so updating the skill keeps the user's preferences
 export const CONFIG_FILE = join(CLAUDE_DIR, 'statusline-limiti.config.json');
 
@@ -62,6 +64,7 @@ export const SCHEMA = {
   colors:        { def: 'auto', parse: oneOf(['auto', 'truecolor', '256', 'none'], { '24bit': 'truecolor', nessuno: 'none', off: 'none' }) },
   symbols:       { def: 'unicode', parse: oneOf(['unicode', 'ascii']) },
   language:      { def: 'auto', parse: oneOf(['auto', 'it', 'en'], { italiano: 'it', english: 'en', inglese: 'en' }) },
+  diagnostics:   { def: false, parse: bool },
 };
 export const DEFAULTS = Object.fromEntries(Object.entries(SCHEMA).map(([k, s]) => [k, s.def]));
 
@@ -71,6 +74,7 @@ export const KEY_ALIASES = {
   spazio_tra_barre: 'gap', spazio: 'gap', parentesi: 'brackets', compatto: 'compact',
   notifiche: 'notifications', soglie: 'thresholds', mostra_contesto: 'show_context',
   mostra_costo: 'show_cost', mostra_git: 'show_git', colori: 'colors', simboli: 'symbols', lingua: 'language',
+  diagnostica: 'diagnostics',
 };
 export const canonicalKey = k => {
   k = String(k).toLowerCase();

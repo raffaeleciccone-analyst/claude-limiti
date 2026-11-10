@@ -1,6 +1,8 @@
 // Report for the /limiti skill: status, pace, forecast, history. Always exits 0.
+//   node report.mjs                 the report
+//   node report.mjs diagnostics     checks the assumptions against the diagnostics log (alias: diagnosi)
 import { readFileSync } from 'node:fs';
-import { STATE_FILE, loadConfig, detectLanguage, formatters, num } from './common.mjs';
+import { STATE_FILE, DIAG_FILE, loadConfig, detectLanguage, formatters, num } from './common.mjs';
 
 const T = {
   it: {
@@ -47,6 +49,56 @@ const lang = detectLanguage(loadConfig());
 const L = T[lang];
 const { dur, fullDate, dayName } = formatters(lang);
 const clock = e => { const t = new Date(e * 1000); return `${new Date().toDateString() === t.toDateString() ? '' : dayName(t) + ' '}${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`; };
+
+if (['diagnostics', 'diagnosi'].includes(process.argv[2])) { diagnostics(); process.exit(0); }
+
+// What the code assumes about Claude Code, checked against real readings
+function diagnostics() {
+  const it = lang === 'it';
+  let rows = [];
+  for (const f of [DIAG_FILE + '.old', DIAG_FILE]) {
+    try { rows.push(...readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean)); } catch {}
+  }
+  if (!rows.length) {
+    console.log(it ? 'Registro vuoto: accendilo con  settings.mjs diagnostics true  e usa Claude Code per qualche giorno.'
+      : 'Empty log: turn it on with  settings.mjs diagnostics true  and use Claude Code for a few days.');
+    return;
+  }
+  rows.sort((a, b) => a.t - b.t);
+  const days = (rows[rows.length - 1].t - rows[0].t) / 86400;
+  const sessions = new Set(rows.map(r => r.s).filter(Boolean));
+  const resets = rows.flatMap(r => [r.h5?.[1], r.d7?.[1]]).filter(x => num(x) != null);
+  const offHour = resets.filter(r => r % 3600 !== 0).length;
+  // same session, same API time, but different limits → limits can change without a new response
+  let silent = 0, apiBack = 0, drops = 0, pairs = 0;
+  const last = {};
+  for (const r of rows) {
+    if (!r.s) continue;
+    const p = last[r.s];
+    if (p && r.a != null && p.a != null) {
+      pairs++;
+      if (r.a === p.a && JSON.stringify([r.h5, r.d7]) !== JSON.stringify([p.h5, p.d7])) silent++;
+      if (r.a < p.a) apiBack++;
+      for (const k of ['h5', 'd7']) if (r.f && r[k] && p[k] && r[k][1] === p[k][1] && r[k][0] < p[k][0]) drops++;
+    }
+    last[r.s] = r;
+  }
+  const ok = n => (n === 0 ? (it ? 'OK' : 'OK') : (it ? 'DA GUARDARE' : 'CHECK'));
+  const L2 = it ? [
+    `Registro: ${rows.length} letture, ${sessions.size} sessioni, ${days.toFixed(1)} giorni.`,
+    `1. Reset non allo scoccare dell'ora: ${offHour} su ${resets.length} → ${ok(offHour)} (se non è 0, gli avvisi potrebbero ripetersi).`,
+    `2. Limiti cambiati senza una nuova risposta: ${silent} su ${pairs} coppie → ${ok(silent)} (se non è 0, la regola "dato fresco" va rivista).`,
+    `3. Tempo API tornato indietro nella stessa sessione (es. /resume): ${apiBack} → ${apiBack ? 'succede: gestito, si corregge alla risposta dopo' : 'mai visto'}.`,
+    `4. Percentuale scesa nella stessa finestra con un dato fresco: ${drops} → ${drops ? 'succede (cambio piano o finestra mobile)' : 'mai visto'}.`,
+  ] : [
+    `Log: ${rows.length} readings, ${sessions.size} sessions, ${days.toFixed(1)} days.`,
+    `1. Resets not on the hour: ${offHour} of ${resets.length} → ${ok(offHour)} (if not 0, alerts might repeat).`,
+    `2. Limits changed without a new response: ${silent} of ${pairs} pairs → ${ok(silent)} (if not 0, the "fresh data" rule needs a review).`,
+    `3. API time going back within a session (e.g. /resume): ${apiBack} → ${apiBack ? 'happens: handled, fixed at the next response' : 'never seen'}.`,
+    `4. Percentage dropping within a window on fresh data: ${drops} → ${drops ? 'happens (plan change or rolling window)' : 'never seen'}.`,
+  ];
+  console.log(L2.join('\n'));
+}
 
 let st = null;
 try { st = JSON.parse(readFileSync(STATE_FILE, 'utf8')); } catch {}

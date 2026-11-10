@@ -80,6 +80,7 @@ node ~/.claude/skills/limiti/settings.mjs reset
 | `colors` | `auto` · `truecolor` · `256` · `none` (also off when `NO_COLOR` is set) | `auto` |
 | `symbols` | `unicode` · `ascii` (if you see boxes instead of symbols) | `unicode` |
 | `language` | `auto` · `en` · `it` | `auto` |
+| `diagnostics` | logs every reading locally, to check how it works (see below) | `false` |
 
 Changes show from the next response, no restart needed. Preferences are stored in
 `~/.claude/statusline-limiti.config.json`.
@@ -98,6 +99,22 @@ columns wide and overlap the text), so everything stays aligned.
 - **Strange colors.** Try `colors 256`, or `colors none`.
 - **No notifications on Linux.** Install `notify-send` (package `libnotify-bin` or `libnotify`).
   On Windows they appear as coming from "Windows PowerShell".
+
+## How it works
+
+A plain-language walkthrough (in Italian) is in [docs/come-funziona.md](docs/come-funziona.md).
+
+## Checking how it works
+
+The bar relies on a few things Claude Code does not document, such as how to tell a fresh
+reading from an old one when several sessions are open. To check them with your own data,
+turn on `diagnostics`, use Claude Code for a few days, then run:
+
+```
+node ~/.claude/skills/limiti/report.mjs diagnostics
+```
+
+Each line says OK or CHECK. A CHECK is worth an issue on GitHub.
 
 ## Privacy and security
 
@@ -119,7 +136,7 @@ history stay in `~/.claude`: delete them by hand if you do not need them.
 ## Development
 
 ```
-node test/test.mjs           # 207 checks, all in temporary folders
+node test/test.mjs           # 212 checks, all in temporary folders
 node tools/preview-svg.mjs   # regenerates the images in docs/
 ```
 
