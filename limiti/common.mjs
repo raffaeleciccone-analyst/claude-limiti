@@ -66,6 +66,7 @@ export const SCHEMA = {
   language:      { def: 'auto', parse: oneOf(['auto', 'it', 'en'], { italiano: 'it', english: 'en', inglese: 'en' }) },
   diagnostics:   { def: false, parse: bool },
   scheduled_reset: { def: false, parse: bool }, // Windows: reset notification even with every session closed
+  show_codex:    { def: true, parse: bool },  // extra line with the OpenAI Codex limits, only if Codex is used
 };
 export const DEFAULTS = Object.fromEntries(Object.entries(SCHEMA).map(([k, s]) => [k, s.def]));
 
@@ -75,7 +76,7 @@ export const KEY_ALIASES = {
   spazio_tra_barre: 'gap', spazio: 'gap', parentesi: 'brackets', compatto: 'compact',
   notifiche: 'notifications', soglie: 'thresholds', mostra_contesto: 'show_context',
   mostra_costo: 'show_cost', mostra_git: 'show_git', colori: 'colors', simboli: 'symbols', lingua: 'language',
-  diagnostica: 'diagnostics', notifica_reset_programmata: 'scheduled_reset', reset_programmato: 'scheduled_reset',
+  diagnostica: 'diagnostics', notifica_reset_programmata: 'scheduled_reset', reset_programmato: 'scheduled_reset', mostra_codex: 'show_codex',
 };
 export const canonicalKey = k => {
   k = String(k).toLowerCase();

@@ -10,6 +10,7 @@ import {
   STATE_DIR, STATE_FILE, ALERTS_DIR, DIAG_FILE, STYLES, SYMBOLS, loadConfig, detectLanguage, formatters,
   clean, num, writeAtomic,
 } from './common.mjs';
+import { readCodex, windowLabel } from './codex.mjs';
 
 const T = {
   it: {
@@ -28,6 +29,7 @@ const T = {
     alertBody: (t, d) => `Si azzera ${t} (tra ${d}).`,
     resetTitle: n => `Claude Code · ${n} azzerato`,
     resetBody: 'Puoi tornare a lavorare a pieno ritmo.',
+    codexAlert: (l, p) => `Codex · Limite ${l} al ${p}%`, codexReset: l => `Codex · Limite ${l} azzerato`,
   },
   en: {
     h5: '5h', d7: '7d', reset: 'resets', in: d => `(in ${d})`,
@@ -45,6 +47,7 @@ const T = {
     alertBody: (t, d) => `Resets ${t} (in ${d}).`,
     resetTitle: n => `Claude Code · ${n} reset`,
     resetBody: 'You can get back to full speed.',
+    codexAlert: (l, p) => `Codex · ${l} limit at ${p}%`, codexReset: l => `Codex · ${l} limit reset`,
   },
 };
 
@@ -236,15 +239,15 @@ function claim(name) {
 // Resets happen on the hour: rounding to the hour tolerates small changes of resets_at
 const bucket = r => Math.round(r / 3600);
 const windowName = k => (k === 'five_hour' ? L.name5 : L.name7);
-const resetText = (k, r) => (k === 'seven_day' ? fullDate(r) : L.at(clock(r)));
+const resetText = (k, r, len) => (k === 'seven_day' || len > 86400 ? fullDate(r) : L.at(clock(r)));
 
-function checkAlerts(key, w) {
+function checkAlerts(key, w, title = (n, p) => L.alertTitle(n, p)) {
   if (!w.resets_at || w.resets_at <= now) return;
   for (const s of [...cfg.thresholds].reverse()) {
     if (w.used_percentage < s) continue;
     const first = claim(`${key}-${bucket(w.resets_at)}-${s}`);
     cfg.thresholds.filter(x => x < s).forEach(x => claim(`${key}-${bucket(w.resets_at)}-${x}`));
-    if (first) toast(L.alertTitle(windowName(key), Math.round(w.used_percentage)), L.alertBody(resetText(key, w.resets_at), dur(w.resets_at - now)));
+    if (first) toast(title(windowName(key), Math.round(w.used_percentage)), L.alertBody(resetText(key, w.resets_at, w.len), dur(w.resets_at - now)));
     break;
   }
 }
@@ -441,11 +444,47 @@ if (compact && items.length) {
 }
 if (spendLine) limitLines.push(spendLine);
 
+// ---------- Codex (OpenAI) limits, read from its session files: one extra line if used ----------
+// Codex has no status line of its own to customize, so its limits are shown here too.
+// Each window has its own length (5h + 7d on paid plans, 30d on Free).
+let codexLine = null;
+if (cfg.show_codex) {
+  let cx = null;
+  try { cx = readCodex(); } catch {}
+  const wins = (cx?.windows || []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
+  if (wins.length) {
+    const age = now - cx.t;
+    for (const w of wins) {
+      const k = `codex_${Math.round((w.len || 0) / 60)}m`, lbl = windowLabel(w.len, lang);
+      if (w.resets_at > now) {
+        if (!w.len || age < w.len) checkAlerts(k, w, (n, p) => L.codexAlert(lbl, p));
+      } else if (now - w.resets_at <= 600 && w.used_percentage >= Math.min(...cfg.thresholds) && claim(`${k}-${bucket(w.resets_at)}-reset`)) {
+        toast(L.codexReset(lbl), L.resetBody);
+      }
+    }
+    codexLine = fit(level => {
+      const parts = wins.map(w => {
+        const lbl = windowLabel(w.len, lang);
+        if (w.resets_at <= now) return `${c(SOFT, lbl)} ${bar(0, 8)} ${pctColor(0)}${BOLD}  0%${R}  ${c(GREEN, L.wasResetShort)}`;
+        const p = w.used_percentage, shown = p < 100 ? Math.min(99, Math.round(p)) : Math.round(p);
+        if (level >= 4) return `${c(SOFT, lbl)} ${pctColor(p)}${BOLD}${shown}%${R}`;
+        let s = `${c(SOFT, lbl)} ${bar(p, 8)} ${pctColor(p)}${BOLD}${String(shown).padStart(3)}%${R}`;
+        if (level >= 3) return s;
+        const when = (w.len || 0) > 86400 && level < 2 ? fullDate(w.resets_at) : clock(w.resets_at);
+        return p >= 100 ? `${s}  ${c(RED, `${BOLD}${L.exhausted}`)} ${c(SOFT, when)}` : `${s}  ${c(SOFT, `${L.reset} ${when}`)}`;
+      });
+      const stale = age > 600 && level < 1 ? c(GREY, `  ${L.stale(dur(age))}`) : '';
+      return `${c(VIOLET, 'Codex')} ${parts.join(SEP)}${stale}`;
+    }, 5);
+  }
+}
+
 if (!limitLines.length) {
   // No limits yet. With API-key accounts they never arrive: say so instead of "waiting".
   const answered = num(d.cost?.total_api_duration_ms) > 0;
   limitLines.push(fit(l => c(GREY, answered ? (l ? L.unavailableShort : L.unavailable) : (l ? L.waitingShort : L.waiting)), 2));
 }
+if (codexLine) limitLines.push(codexLine);
 
 if (cfg.gap && !compact) limitLines.forEach((l, i) => { if (i) lines.push('\u2800'); lines.push(l); }); // U+2800: invisible but not whitespace, so it is kept
 else lines.push(...limitLines);

@@ -31,7 +31,9 @@ the user for permission once.
 3. If the output starts with `NESSUN_DATO` or `NO_DATA`: explain that limits arrive after the first
    response of a session, only with a claude.ai Pro, Max or Ultra plan, and that `/usage` shows
    the same limits.
-4. Give at most one tip, only when useful:
+4. A "Codex (OpenAI)" section appears when the user also uses Codex: summarize it separately, say
+   how old its data is (it only updates when Codex is used).
+5. Give at most one tip, only when useful:
    - 5-hour limit that **runs out before the reset**, or above 80% → for simple tasks switch to a
      lighter model (`/model sonnet`) or lower the effort (`/effort medium`); avoid letting the
      prompt cache expire (resume work before the `cache` timer in the bar ends);
@@ -51,7 +53,8 @@ node "${CLAUDE_SKILL_DIR}/settings.mjs" reset            # defaults
 ```
 
 Keys: `style`, `width`, `gap`, `brackets`, `compact`, `notifications`, `thresholds`,
-`show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`, `diagnostics`, `scheduled_reset`.
+`show_context`, `show_cost`, `show_git`, `colors`, `symbols`, `language`, `diagnostics`, `scheduled_reset`,
+`show_codex` (extra line with the Codex limits, shown only when Codex is used).
 
 `scheduled_reset` (Windows): when a limit passes the first threshold, a one-time Windows task shows the
 "limit reset" notification at the reset time even if every session is closed, then deletes itself.

@@ -3,6 +3,7 @@
 //   node report.mjs diagnostics     checks the assumptions against the diagnostics log (alias: diagnosi)
 import { readFileSync } from 'node:fs';
 import { STATE_FILE, DIAG_FILE, loadConfig, detectLanguage, formatters, num } from './common.mjs';
+import { readCodex, windowLabel } from './codex.mjs';
 
 const T = {
   it: {
@@ -23,6 +24,9 @@ const T = {
     hist7: s => `Settimanale a fine giornata: ${s}`,
     spend: (p, t) => `\nLimite di spesa: ${p}%${t}.`,
     ctx: p => `\nContesto dell'ultima sessione: ${p}% pieno.`,
+    codexHead: (plan, a) => `Codex (OpenAI)${plan ? `, piano ${plan}` : ''}: dati di ${a} (si aggiornano quando usi Codex).`,
+    codexName: l => `Limite ${l}`,
+    codexReached: 'Codex segnala il limite RAGGIUNTO.',
   },
   en: {
     none: 'NO_DATA: the status line has not received the limits yet.',
@@ -42,6 +46,9 @@ const T = {
     hist7: s => `Weekly at end of day: ${s}`,
     spend: (p, t) => `\nSpend limit: ${p}%${t}.`,
     ctx: p => `\nContext of the last session: ${p}% full.`,
+    codexHead: (plan, a) => `Codex (OpenAI)${plan ? `, ${plan} plan` : ''}: data from ${a} (updated when you use Codex).`,
+    codexName: l => `${l} limit`,
+    codexReached: 'Codex reports the limit as REACHED.',
   },
 };
 
@@ -104,9 +111,38 @@ let st = null;
 try { st = JSON.parse(readFileSync(STATE_FILE, 'utf8')); } catch {}
 const rl = st && typeof st.rate_limits === 'object' ? st.rate_limits : null;
 const hasData = rl && Object.values(rl).some(w => num(w?.used_percentage) != null);
-if (!hasData) { console.log(L.none); process.exit(0); }
-
 const now = Date.now() / 1000;
+let cx = null;
+if (loadConfig().show_codex) { try { cx = readCodex(); } catch {} }
+// Codex data counts while one of its windows is still running (or reset less than a day ago)
+const cxWins = (cx?.windows || []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
+if (!hasData && !cxWins.length) { console.log(L.none); process.exit(0); }
+if (hasData) claudeReport();
+if (cxWins.length) codexReport();
+
+function codexReport() {
+  if (hasData) console.log('\n');
+  console.log(L.codexHead(cx.plan, now - cx.t < 60 ? L.nowWord : L.ago(dur(now - cx.t, true))));
+  if (cx.reached) console.log(L.codexReached);
+  console.log();
+  for (const w of cxWins) {
+    const name = L.codexName(windowLabel(w.len, lang));
+    const p = Math.round(Math.max(0, w.used_percentage));
+    if (w.resets_at <= now) { console.log(`${L.alreadyReset(name, p)}\n`); continue; }
+    console.log(L.used(name, Math.min(100, p)));
+    const left = w.resets_at - now;
+    console.log(L.resets(w.len > 86400 ? fullDate(w.resets_at) : clock(w.resets_at), dur(left, true)));
+    if (w.len) {
+      const pace = Math.max(0, Math.min(100, (1 - left / w.len) * 100));
+      const diff = p - pace;
+      console.log(L.pace(Math.round(pace), p, diff > 10 ? L.fast : diff < -10 ? L.ok : L.mid));
+      if (w.len > 86400 && left >= 86400) console.log(L.perDay(Math.max(0, Math.round((100 - p) / (left / 86400)))));
+    }
+    console.log();
+  }
+}
+
+function claudeReport() {
 const storia = Array.isArray(st.storia) ? st.storia : [];
 const age = num(st.aggiornato) != null ? now - st.aggiornato : null;
 if (age != null) console.log(`${L.updated(age < 60 ? L.nowWord : L.ago(dur(age, true)))}\n`);
@@ -169,3 +205,4 @@ if (num(sp?.used_percentage) != null) {
   console.log(L.spend(Math.round(Math.max(0, sp.used_percentage)), u != null && l != null ? ` ($${u.toFixed(2)} / $${l.toFixed(2)})` : ''));
 }
 if (num(st.context_pct) != null) console.log(L.ctx(Math.round(st.context_pct)));
+}

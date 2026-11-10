@@ -27,6 +27,8 @@ semplicemente chiedendolo a Claude.
 - **Più sessioni insieme**: una sessione ferma non sovrascrive i dati più recenti e ogni
   notifica arriva una volta sola.
 - **Italiano e inglese**, scelti in base alla lingua del sistema.
+- **Anche Codex (OpenAI), sperimentale**: se usi Codex, vedi i suoi limiti in una riga in più
+  della barra e nel report, e puoi chiederli direttamente a Codex. Vedi [Codex](#codex-openai).
 
 ## Requisiti
 
@@ -85,6 +87,7 @@ Nomi e valori si possono scrivere in italiano o in inglese.
 | `lingua` (`language`) | `auto` · `it` · `en` | `auto` |
 | `notifica_reset_programmata` (`scheduled_reset`) | Windows: quando un limite supera la prima soglia, un'attività di Windows una tantum mostra la notifica di azzeramento all'ora del reset anche a sessioni chiuse, poi si cancella da sola | `no` |
 | `diagnostica` (`diagnostics`) | registra ogni lettura sul PC, per verificare il funzionamento (vedi sotto) | `no` |
+| `mostra_codex` (`show_codex`) | riga con i limiti di Codex (OpenAI); compare solo se usi Codex | `sì` |
 
 Le modifiche si vedono dalla risposta successiva, senza riavviare. Le preferenze sono salvate in
 `~/.claude/statusline-limiti.config.json`.
@@ -104,6 +107,26 @@ disegnate larghe due colonne e si sovrappongono al testo), così tutto resta all
 - **Colori strani.** Prova `colori 256`, oppure `colori nessuno`.
 - **Niente notifiche su Linux.** Installa `notify-send` (pacchetto `libnotify-bin` o `libnotify`).
   Su Windows le notifiche risultano inviate da "Windows PowerShell".
+
+## Codex (OpenAI)
+
+*Sperimentale: provato su una sessione reale con piano Free e sul formato del codice sorgente di
+Codex, non ancora su un uso quotidiano. Segnalazioni benvenute.*
+
+Codex (CLI, estensione per l'editor e app) scrive i suoi limiti nei file delle sessioni, in
+`~/.codex/sessions` (o `$CODEX_HOME`), dopo ogni risposta, solo se hai fatto l'accesso con un
+account ChatGPT. claude-limiti li legge da lì, senza modificarli:
+
+- **nella barra di Claude Code** compare una riga `Codex` con i suoi limiti. Le finestre dipendono
+  dal piano: 5 ore + settimanale sui piani a pagamento, una sola finestra di 30 giorni sul piano
+  Free. Se il dato non è recente la riga dice di quando è (si aggiorna solo quando usi Codex).
+  Notifiche alle soglie e all'azzeramento come per Claude;
+- **nel report** `/limiti` c'è una sezione Codex con ritmo e budget giornaliero;
+- **dentro Codex**: Codex non permette di personalizzare la sua barra, ma legge le skill. Se esiste
+  la cartella `~/.codex`, `node install.mjs` installa anche la skill in `~/.agents/skills/limiti`:
+  in Codex chiedi *"quanto mi resta?"*. Solo Codex, senza Claude Code: `node install.mjs --codex`.
+
+Per nascondere Codex: `mostra_codex no`.
 
 ## Come funziona
 
@@ -127,7 +150,8 @@ Tutto resta sul tuo computer: nessuna connessione di rete e nessuna dipendenza e
 arrivano da Claude Code stesso; lo storico è salvato in `~/.claude/state/limiti-utilizzo.json`
 (percentuali, orari, identificativi delle sessioni di Claude Code e, con un gateway a limite di spesa, l'importo speso; ultimi 8 giorni). I testi che arrivano da fuori (nome del modello,
 cartella, branch git) vengono ripuliti dai caratteri di controllo prima di essere stampati, e le
-notifiche sono avviate con percorsi assoluti.
+notifiche sono avviate con percorsi assoluti. Dei file di Codex vengono lette solo le righe dei
+limiti (mai i messaggi), e l'ultimo valore letto è tenuto in `~/.claude/state/limiti-codex.json`.
 
 ## Disinstallazione
 
@@ -135,7 +159,8 @@ notifiche sono avviate con percorsi assoluti.
 node install.mjs --rimuovi
 ```
 
-Toglie la status line (rimettendo quella che avevi prima, se c'era) e la skill. Preferenze e
+Toglie la status line (rimettendo quella che avevi prima, se c'era) e la skill (anche quella per
+Codex, se installata). Preferenze e
 storico restano in `~/.claude`: cancellali a mano se non ti servono.
 
 ## Sviluppo

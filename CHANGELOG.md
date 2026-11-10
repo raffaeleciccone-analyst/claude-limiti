@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased (branch `codex`)
+
+- Experimental support for **Codex (OpenAI)**: its limits are read from its session files
+  (`~/.codex/sessions`, plain or `.jsonl.zst`), never modified. Windows are read with their own
+  length (5h + weekly on paid plans, 30 days on Free).
+- Claude Code bar: one more `Codex` line when Codex is used, with threshold and reset notifications
+  (new setting `show_codex`, on by default; nothing changes without Codex).
+- `/limiti` report: Codex section with pace and daily budget; works with Codex data only too.
+- `install.mjs` also installs a skill for Codex in `~/.agents/skills/limiti` when `~/.codex` exists;
+  `--codex` installs only that; `--remove` removes it. Someone else's `limiti` skill is never overwritten.
+
 ## 1.2.0 — 2026-11-10
 
 - New setting `scheduled_reset` (Windows, off by default): when a limit passes the first threshold, a one-time Windows task shows the "limit reset" notification at the reset time even with every Claude Code session closed, then deletes itself. It shares the bar's marker, so the notification never arrives twice. Late by more than 30 minutes (computer off): it deletes itself silently.

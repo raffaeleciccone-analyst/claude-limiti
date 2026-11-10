@@ -26,6 +26,8 @@ skill for a detailed report and for customizing the bar just by asking Claude.
 - **Several sessions at once**: an idle session never overwrites fresher numbers, and each
   notification is sent only once.
 - **English and Italian**, picked from your system language.
+- **Codex (OpenAI) too, experimental**: if you use Codex, its limits show in one more line of the
+  bar and in the report, and you can ask Codex itself. See [Codex](#codex-openai).
 
 ## Requirements
 
@@ -82,6 +84,7 @@ node ~/.claude/skills/limiti/settings.mjs reset
 | `language` | `auto` · `en` · `it` | `auto` |
 | `scheduled_reset` | Windows: when a limit passes the first threshold, a one-time Windows task shows the "limit reset" notification at the reset time even with every session closed, then deletes itself | `false` |
 | `diagnostics` | logs every reading locally, to check how it works (see below) | `false` |
+| `show_codex` | line with the Codex (OpenAI) limits; shown only if you use Codex | `true` |
 
 Changes show from the next response, no restart needed. Preferences are stored in
 `~/.claude/statusline-limiti.config.json`.
@@ -101,6 +104,26 @@ columns wide and overlap the text), so everything stays aligned.
 - **Strange colors.** Try `colors 256`, or `colors none`.
 - **No notifications on Linux.** Install `notify-send` (package `libnotify-bin` or `libnotify`).
   On Windows they appear as coming from "Windows PowerShell".
+
+## Codex (OpenAI)
+
+*Experimental: tested on a real Free-plan session and against the format in Codex's source code,
+not yet in daily use. Reports welcome.*
+
+Codex (CLI, IDE extension and app) writes its limits into its session files, in
+`~/.codex/sessions` (or `$CODEX_HOME`), after every response, when you are signed in with a
+ChatGPT account. claude-limiti reads them from there, without changing them:
+
+- **in the Claude Code bar** a `Codex` line shows its limits. The windows depend on the plan:
+  5 hours + weekly on paid plans, a single 30-day window on Free. When the data is not recent the
+  line says how old it is (it only updates when you use Codex). Threshold and reset
+  notifications work as for Claude;
+- **in the `/limiti` report** a Codex section with pace and daily budget;
+- **inside Codex**: Codex has no customizable status line, but it reads skills. When a `~/.codex`
+  folder exists, `node install.mjs` also installs the skill in `~/.agents/skills/limiti`: in Codex
+  ask *"how much usage is left?"*. Codex only, without Claude Code: `node install.mjs --codex`.
+
+To hide Codex: `show_codex false`.
 
 ## How it works
 
@@ -124,7 +147,8 @@ Everything stays on your computer: no network connections and no dependencies. T
 from Claude Code itself; the history is stored in `~/.claude/state/limiti-utilizzo.json`
 (percentages, times, Claude Code session IDs and, behind a spend-limit gateway, the amount spent; last 8 days). Text from outside (model name, folder, git branch) is
 stripped of control characters before being printed, and notifications are launched with absolute
-paths.
+paths. From Codex's files only the limit lines are read (never the messages), and the last value
+read is kept in `~/.claude/state/limiti-codex.json`.
 
 ## Uninstall
 
@@ -132,7 +156,8 @@ paths.
 node install.mjs --remove
 ```
 
-Removes the status line (restoring the previous one, if any) and the skill. Preferences and
+Removes the status line (restoring the previous one, if any) and the skill (the Codex one too, if
+installed). Preferences and
 history stay in `~/.claude`: delete them by hand if you do not need them.
 
 ## Development

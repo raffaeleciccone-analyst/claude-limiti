@@ -24,7 +24,7 @@ function newHome(config) {
 const setConfig = (h, c) => writeFileSync(join(h, '.claude', 'statusline-limiti.config.json'), typeof c === 'string' ? c : JSON.stringify(c));
 const env = (home, extra = {}) => {
   const e = { ...process.env, HOME: home, USERPROFILE: home, LIMITI_NO_NOTIFICHE: '1', COLUMNS: '160', ...extra };
-  for (const k of ['NO_COLOR', 'COLORTERM', 'TERM_PROGRAM', 'TERM', 'CLAUDE_CONFIG_DIR', 'LANG', 'LC_ALL', 'LC_MESSAGES']) if (!(k in extra)) delete e[k];
+  for (const k of ['NO_COLOR', 'COLORTERM', 'TERM_PROGRAM', 'TERM', 'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'LANG', 'LC_ALL', 'LC_MESSAGES']) if (!(k in extra)) delete e[k];
   return e;
 };
 const run = (home, file, args = [], input = '', extra) => spawnSync(process.execPath, [file, ...args], { input, env: env(home, extra), encoding: 'utf8' });
@@ -464,6 +464,122 @@ console.log('11. SKILL.md');
   check(!/~\/\.claude\/skills/.test(md), 'no hard-coded skill path');
   check(!/^\s*- \w+\(.*\*\)\s*$/m.test(fm), 'no wildcard in pre-approved commands');
   check(/PowerShell\(node/.test(fm) && /Bash\(node/.test(fm), 'rules for both Bash and PowerShell');
+}
+
+console.log('12. Codex (OpenAI) limits');
+{
+  const { lastSnapshot, parseRateLimits, windowLabel } = await import('../limiti/codex.mjs');
+  const zlib = await import('node:zlib');
+  const { utimesSync } = await import('node:fs');
+  // Same shape Codex writes (checked against a real session file and codex-rs/protocol)
+  const ev = (rl, t = now - 30) => JSON.stringify({ timestamp: new Date(t * 1000).toISOString(), type: 'event_msg', payload: { type: 'token_count', info: null, rate_limits: rl } });
+  const paid = (p5, p7, extra = {}) => ({ limit_id: 'codex', limit_name: null, primary: { used_percent: p5, window_minutes: 300, resets_at: now + 3600 }, secondary: { used_percent: p7, window_minutes: 10080, resets_at: now + 400000 }, credits: null, plan_type: 'plus', rate_limit_reached_type: null, ...extra });
+  const free = p => ({ limit_id: 'codex', primary: { used_percent: p, window_minutes: 43200, resets_at: now + 600000 }, secondary: null, plan_type: 'free' });
+  const other = { type: 'response_item', payload: { type: 'message', role: 'assistant', content: [] } };
+  const writeCodex = (h, lines, { day = '10', name = 'rollout-2026-11-10T10-00-00-abc.jsonl', mtime } = {}) => {
+    const dir = join(h, '.codex', 'sessions', '2026', '11', day);
+    mkdirSync(dir, { recursive: true });
+    const f = join(dir, name);
+    const text = lines.join('\n') + '\n';
+    writeFileSync(f, name.endsWith('.zst') ? zlib.zstdCompressSync(Buffer.from(text)) : text);
+    if (mtime) utimesSync(f, mtime, mtime);
+    return f;
+  };
+  const CX = h => ({ CODEX_HOME: join(h, '.codex') });
+
+  // parsing
+  const s1 = lastSnapshot([ev(paid(10, 20), now - 100), JSON.stringify(other), ev(paid(12, 21), now - 50), JSON.stringify(other)].join('\n'));
+  check(s1 && s1.windows.length === 2 && s1.windows[0].used_percentage === 12 && s1.windows[0].len === 18000 && s1.windows[1].len === 604800 && s1.plan === 'plus', 'paid plan: 5h + weekly, latest event wins');
+  const s2 = lastSnapshot(ev(free(7)));
+  check(s2 && s2.windows.length === 1 && s2.windows[0].len === 2592000 && windowLabel(s2.windows[0].len, 'it') === '30g' && windowLabel(18000, 'en') === '5h', 'Free plan: one 30-day window, labels 5h / 30g');
+  check(lastSnapshot([ev(paid(10, 20)), ev({ ...paid(90, 90), limit_id: 'codex_other' })].join('\n'))?.windows[0].used_percentage === 10, 'extra per-model quotas (other limit_id) are ignored');
+  check(lastSnapshot(ev(null)) === null && lastSnapshot('') === null && lastSnapshot('{"type":"event_msg","payload":{"type":"token_count","rate_limits":') === null, 'no limits (API key) or a cut line: nothing, no crash');
+  const legacy = parseRateLimits({ primary: { used_percent: 5, window_minutes: 300, resets_in_seconds: 600 } }, 1000);
+  check(legacy?.windows[0].resets_at === 1600, 'older Codex format (resets_in_seconds) understood');
+  check(parseRateLimits({ primary: { used_percent: 'x' } }, 1) === null && parseRateLimits({ primary: { used_percent: -5, window_minutes: 300, resets_at: 9 } }, 1).windows[0].used_percentage === 0, 'bad numbers rejected or clamped');
+
+  // status line
+  const h = newHome({ language: 'it' });
+  writeCodex(h, [ev(paid(42, 15))]);
+  let out = strip(run(h, SL, [], input(20, 18), CX(h)).stdout).split('\n');
+  check(out.length === 4 && /^Codex 5h .* 42%  reset \d\d:\d\d .*│ 7g .* 15%  reset /.test(out[3]), 'status line: extra Codex line with 5h and weekly');
+  check(!/dati di/.test(out[3]), 'fresh Codex data: no age shown');
+  for (const cols of [40, 60, 80, 120, 160]) {
+    const o = run(h, SL, [], input(20, 18), { ...CX(h), COLUMNS: String(cols) }).stdout.split('\n');
+    check(o.every(l => width(l) <= cols) && strip(o[o.length - 1]).startsWith('Codex'), `Codex line fits at ${cols} columns: ${o.map(width).join(',')}`);
+  }
+  setConfig(h, { language: 'it', show_codex: false });
+  out = strip(run(h, SL, [], input(20, 18), CX(h)).stdout);
+  check(!out.includes('Codex'), 'show_codex false hides the line');
+  const hn = newHome({ language: 'it' });
+  check(!strip(run(hn, SL, [], input(20, 18), CX(hn)).stdout).includes('Codex'), 'no Codex folder: no line, no error');
+  const hw = newHome({ language: 'it' });
+  writeCodex(hw, [ev(free(3))]);
+  out = strip(run(hw, SL, [], JSON.stringify({ cost: { total_api_duration_ms: 0 } }), CX(hw)).stdout).split('\n');
+  check(out.some(l => l.includes('in attesa')) && /^Codex 30g .*  3%  reset \w+ \d\d\/\d\d/.test(out[out.length - 1]), 'Codex only: Claude still "waiting", Codex 30-day line with the date');
+
+  // stale and reset windows
+  const hs = newHome({ language: 'it' });
+  writeCodex(hs, [ev({ ...paid(60, 30), primary: { used_percent: 85, window_minutes: 300, resets_at: now - 120 } }, now - 7200)]);
+  const toastFile = join(hs, 't.txt');
+  out = strip(run(hs, SL, [], input(20, 18), { ...CX(hs), LIMITI_NO_NOTIFICHE: '', LIMITI_TOAST_FILE: toastFile }).stdout).split('\n');
+  check(/^Codex 5h .*  0%  azzerato/.test(out[3]) && out[3].includes('dati di 2h'), 'expired Codex window shows "azzerato", old data shows its age');
+  let toasts = existsSync(toastFile) ? readFileSync(toastFile, 'utf8') : '';
+  check(toasts.includes('Codex · Limite 5h azzerato') && !toasts.includes('7g'), 'Codex reset notification sent; weekly at 30% no alert');
+
+  // threshold alerts, once
+  const ha = newHome({ language: 'it' });
+  writeCodex(ha, [ev(paid(83, 10))]);
+  const tf = join(ha, 't.txt'), N = { ...CX(ha), LIMITI_NO_NOTIFICHE: '', LIMITI_TOAST_FILE: tf };
+  run(ha, SL, [], input(20, 18), N); run(ha, SL, [], input(20, 18), N);
+  toasts = readFileSync(tf, 'utf8').trim().split('\n');
+  check(toasts.length === 1 && toasts[0].startsWith('Codex · Limite 5h al 83%'), 'Codex alert at 80% sent once, labelled Codex');
+
+  // which file: newest by modification time, even in an older day folder (resumed session)
+  const hr = newHome({ language: 'en' });
+  writeCodex(hr, [ev(paid(10, 10), now - 3000)], { day: '10', mtime: now - 3000 });
+  writeCodex(hr, [ev(paid(55, 10), now - 60)], { day: '02', name: 'rollout-2026-11-02T09-00-00-old.jsonl', mtime: now - 60 });
+  out = strip(run(hr, SL, [], input(20, 18), CX(hr)).stdout);
+  check(/Codex 5h .* 55%/.test(out), 'resumed old session (older folder, newer data) wins');
+  if (typeof zlib.zstdCompressSync === 'function') {
+    const hz = newHome({ language: 'en' });
+    writeCodex(hz, [ev(free(21))], { name: 'rollout-2026-11-10T10-00-00-z.jsonl.zst' });
+    check(/Codex 30d .* 21%/.test(strip(run(hz, SL, [], input(20, 18), CX(hz)).stdout)), 'compressed session (.jsonl.zst) read');
+  }
+  // a huge session: only the end is read
+  const hb = newHome({ language: 'en' });
+  writeCodex(hb, [ev(paid(1, 1), now - 500), ...Array(3000).fill(JSON.stringify({ ...other, pad: 'x'.repeat(600) })), ev(paid(33, 2))]);
+  check(/Codex 5h .* 33%/.test(strip(run(hb, SL, [], input(20, 18), CX(hb)).stdout)), 'large session file (2 MB): latest value read from the end');
+
+  // report
+  let rep = run(h, REPORT, [], '', CX(h)).stdout; // show_codex false
+  check(!rep.includes('Codex'), 'report: show_codex false hides Codex');
+  rep = run(hw, REPORT, [], '', CX(hw)).stdout;
+  check(rep.startsWith('Codex (OpenAI), piano free') && rep.includes('Limite 30g: 3% usato, resta 97%') && rep.includes('al giorno'), 'report: Codex only (no Claude data), Free plan');
+  const hrep = newHome({ language: 'en' });
+  writeCodex(hrep, [ev(paid(42, 15, { rate_limit_reached_type: 'rate_limit_reached' }))]);
+  run(hrep, SL, [], input(20, 18), CX(hrep));
+  rep = run(hrep, REPORT, [], '', CX(hrep)).stdout;
+  check(rep.includes('5-hour limit: 20% used') && rep.includes('Codex (OpenAI), plus plan') && rep.includes('5h limit: 42% used') && rep.includes('7d limit: 15% used') && rep.includes('REACHED'), 'report: Claude and Codex together');
+  const he = newHome({ language: 'it' });
+  check(run(he, REPORT, [], '', CX(he)).stdout.startsWith('NESSUN_DATO'), 'report: nothing anywhere → NESSUN_DATO');
+
+  // Codex skill
+  const hi = newHome({ language: 'en' });
+  const r = run(hi, INSTALL, ['--codex'], '', CX(hi));
+  const dest = join(hi, '.agents', 'skills', 'limiti');
+  const md = existsSync(join(dest, 'SKILL.md')) ? readFileSync(join(dest, 'SKILL.md'), 'utf8') : '';
+  check(r.status === 0 && /^---\nname: limiti\ndescription: .+\n---/.test(md) && !md.includes('{{DIR}}') && !md.includes('CLAUDE_SKILL_DIR') && md.includes(dest.split('\\').join('/') + '/report.mjs'), 'install --codex: skill with absolute paths');
+  check(!existsSync(join(hi, '.claude', 'settings.json')), 'install --codex leaves Claude Code untouched');
+  writeCodex(hi, [ev(free(9))]);
+  check(run(hi, join(dest, 'report.mjs'), [], '', CX(hi)).stdout.includes('30d limit: 9% used'), 'report runs from the Codex skill folder');
+  run(hi, INSTALL, ['--remove'], '', { ...CX(hi), LIMITI_SCHEDULE_FILE: join(hi, 'x') });
+  check(!existsSync(dest), '--remove deletes our Codex skill');
+  mkdirSync(dest, { recursive: true }); writeFileSync(join(dest, 'SKILL.md'), 'someone else');
+  run(hi, INSTALL, ['--codex'], '', CX(hi));
+  check(readFileSync(join(dest, 'SKILL.md'), 'utf8') === 'someone else', "someone else's limiti skill is never overwritten");
+  const tpl = readFileSync(join(ROOT, 'codex-skill', 'SKILL.md'), 'utf8');
+  check([...tpl.matchAll(/\{\{DIR\}\}\/(\w+\.mjs)/g)].every(m => existsSync(join(SKILL, m[1]))), 'Codex skill template references existing scripts');
 }
 
 for (const h of homes) rmSync(h, { recursive: true, force: true });

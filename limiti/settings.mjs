@@ -21,6 +21,7 @@ const T = {
       show_git: 'branch git', colors: 'colori (none = senza colori)', symbols: 'ascii se vedi quadratini', language: 'lingua',
       diagnostics: 'registro per verificare il funzionamento',
       scheduled_reset: 'notifica di azzeramento anche a sessioni chiuse (Windows)',
+      show_codex: 'riga con i limiti di Codex (OpenAI), se lo usi',
     },
   },
   en: {
@@ -38,6 +39,7 @@ const T = {
       show_git: 'git branch', colors: 'colors (none = no colors)', symbols: 'ascii if you see boxes', language: 'language',
       diagnostics: 'log to check how it works',
       scheduled_reset: 'reset notification even with sessions closed (Windows)',
+      show_codex: 'line with the Codex (OpenAI) limits, if you use it',
     },
   },
 };
@@ -45,7 +47,7 @@ const ALLOWED = {
   style: Object.keys(STYLES).join(' | '), width: '8-40', gap: 'true | false', brackets: 'true | false',
   compact: 'auto | always | never', notifications: 'true | false', thresholds: '80,95', show_context: 'true | false',
   show_cost: 'true | false', show_git: 'true | false', colors: 'auto | truecolor | 256 | none', symbols: 'unicode | ascii',
-  language: 'auto | it | en', diagnostics: 'true | false', scheduled_reset: 'true | false',
+  language: 'auto | it | en', diagnostics: 'true | false', scheduled_reset: 'true | false', show_codex: 'true | false',
 };
 
 const user = readUserConfig();

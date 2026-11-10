@@ -3,6 +3,8 @@
 //   node install.mjs            install or update
 //   node install.mjs --force    replace a status line configured by something else (it is saved and restored on --remove)
 //   node install.mjs --remove   uninstall (keeps preferences and history)
+//   node install.mjs --codex    only the skill for Codex (~/.agents/skills), Claude Code untouched
+//   (a normal install also adds the Codex skill when a Codex folder exists)
 // Italian aliases: --forza, --rimuovi
 const [major] = process.versions.node.split('.').map(Number);
 if (major < 18) {
@@ -12,8 +14,10 @@ if (major < 18) {
 
 const { cpSync, existsSync, readFileSync, rmSync, copyFileSync, lstatSync, unlinkSync } = await import('node:fs');
 const { join, dirname } = await import('node:path');
+const { homedir } = await import('node:os');
 const { fileURLToPath } = await import('node:url');
 const { CLAUDE_DIR, loadConfig, detectLanguage, writeAtomic } = await import('./limiti/common.mjs');
+const { CODEX_DIR } = await import('./limiti/codex.mjs');
 
 const T = {
   it: {
@@ -28,6 +32,9 @@ const T = {
     done: 'Fatto. Riavvia Claude Code: i limiti compaiono dopo la prima risposta.\nPer personalizzare la barra chiedi a Claude, per esempio "/limiti cambia lo stile della barra".',
     restored: 'Status line precedente ripristinata.', removedSl: 'Status line rimossa da settings.json.',
     removedSkill: d => `Skill rimossa: ${d}`,
+    codexSkill: d => `Skill per Codex installata in ${d}: in Codex chiedi "quanto mi resta?".`,
+    codexForeign: d => `In ${d} c'è già un'altra skill "limiti": non la tocco.`,
+    codexRemoved: d => `Skill per Codex rimossa: ${d}`,
     kept: 'Preferenze e storico restano in ~/.claude (statusline-limiti.config.json, state/limiti-*): cancellali a mano se non servono.',
   },
   en: {
@@ -42,6 +49,9 @@ const T = {
     done: 'Done. Restart Claude Code: the limits appear after the first response.\nTo customize the bar ask Claude, e.g. "/limiti change the bar style".',
     restored: 'Previous status line restored.', removedSl: 'Status line removed from settings.json.',
     removedSkill: d => `Skill removed: ${d}`,
+    codexSkill: d => `Codex skill installed in ${d}: in Codex ask "how much usage is left?".`,
+    codexForeign: d => `${d} already holds another "limiti" skill: leaving it alone.`,
+    codexRemoved: d => `Codex skill removed: ${d}`,
     kept: 'Preferences and history stay in ~/.claude (statusline-limiti.config.json, state/limiti-*): delete them by hand if you do not need them.',
   },
 };
@@ -50,6 +60,7 @@ const L = T[detectLanguage(loadConfig())];
 const args = process.argv.slice(2);
 const force = args.includes('--force') || args.includes('--forza');
 const remove = args.includes('--remove') || args.includes('--rimuovi');
+const codexOnly = args.includes('--codex');
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), 'limiti');
 const DEST = join(CLAUDE_DIR, 'skills', 'limiti');
@@ -57,6 +68,23 @@ const SETTINGS = join(CLAUDE_DIR, 'settings.json');
 const BACKUP = SETTINGS + '.bak-limiti';
 const PREVIOUS = join(CLAUDE_DIR, 'statusline-limiti.precedente.json');
 const LEGACY = join(CLAUDE_DIR, 'statusline-limiti.mjs'); // script location of early versions
+
+// ---------- skill for Codex (and other agents reading ~/.agents/skills) ----------
+const CODEX_DEST = join(homedir(), '.agents', 'skills', 'limiti');
+const CODEX_TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), 'codex-skill', 'SKILL.md');
+const MARK = '.claude-limiti'; // tells our copy apart from someone else's "limiti" skill
+const isOurs = d => existsSync(join(d, MARK));
+function installCodex() {
+  if (existsSync(CODEX_DEST) && !isOurs(CODEX_DEST)) { console.log(L.codexForeign(CODEX_DEST)); return; }
+  rmSync(CODEX_DEST, { recursive: true, force: true });
+  cpSync(SRC, CODEX_DEST, { recursive: true });
+  // Codex does not expand CLAUDE_SKILL_DIR: the skill gets the absolute path written in
+  const dir = CODEX_DEST.split('\\').join('/');
+  writeAtomic(join(CODEX_DEST, 'SKILL.md'), readFileSync(CODEX_TEMPLATE, 'utf8').split('{{DIR}}').join(dir));
+  writeAtomic(join(CODEX_DEST, MARK), 'installed by claude-limiti install.mjs\n');
+  console.log(L.codexSkill(CODEX_DEST));
+}
+if (codexOnly && !remove) { installCodex(); process.exit(0); }
 
 const script = join(DEST, 'statusline.mjs').replace(/\\/g, '/');
 // Windows: double quotes (forward slashes work in cmd, PowerShell and Git Bash).
@@ -87,6 +115,7 @@ if (remove) {
     try { unlinkSync(PREVIOUS); } catch {}
   }
   if (existsSync(DEST) || isLink(DEST)) { rmSync(DEST, { recursive: true, force: true }); console.log(L.removedSkill(DEST)); }
+  if (isOurs(CODEX_DEST)) { rmSync(CODEX_DEST, { recursive: true, force: true }); console.log(L.codexRemoved(CODEX_DEST)); }
   if (process.platform === 'win32' && !process.env.LIMITI_SCHEDULE_FILE) {
     // scheduled reset notifications still waiting
     const { spawnSync } = await import('node:child_process');
@@ -114,5 +143,6 @@ saveSettings();
 console.log(L.enabled);
 if (process.platform === 'win32' && /[$`%!]/.test(script)) console.log(L.oddPath(script));
 if (ours(current) && /statusline-limiti\.mjs/.test(current.command) && existsSync(LEGACY)) { try { unlinkSync(LEGACY); } catch {} }
+if (existsSync(CODEX_DIR) || isOurs(CODEX_DEST)) installCodex();
 
 console.log(`\n${L.done}`);
