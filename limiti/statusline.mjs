@@ -451,7 +451,9 @@ let codexLine = null;
 if (cfg.show_codex) {
   let cx = null;
   try { cx = readCodex(); } catch {}
-  const wins = (cx?.windows || []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
+  // Only for people who USE Codex: a response in the last 24 hours. An old test session
+  // (e.g. a 30-day Free window still running) must not put a line in everyone's bar.
+  const wins = (cx && now - cx.t < 86400 ? cx.windows : []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
   if (wins.length) {
     const age = now - cx.t;
     for (const w of wins) {

@@ -5,11 +5,10 @@
 - Experimental support for **Codex (OpenAI)**: its limits are read from its session files
   (`~/.codex/sessions`, plain or `.jsonl.zst`), never modified. Windows are read with their own
   length (5h + weekly on paid plans, 30 days on Free).
-- Claude Code bar: one more `Codex` line when Codex is used, with threshold and reset notifications
+- Claude Code bar: one more `Codex` line only when Codex was used in the last 24 hours (report: 7 days), with threshold and reset notifications
   (new setting `show_codex`, on by default; nothing changes without Codex).
 - `/limiti` report: Codex section with pace and daily budget; works with Codex data only too.
-- `install.mjs` also installs a skill for Codex in `~/.agents/skills/limiti` when `~/.codex` exists;
-  `--codex` installs only that; `--remove` removes it. Someone else's `limiti` skill is never overwritten.
+- `install.mjs --codex` installs a skill for Codex in `~/.agents/skills/limiti` (never automatic); `--remove` removes it. Someone else's `limiti` skill is never overwritten.
 
 ## 1.2.0 — 2026-11-10
 

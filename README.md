@@ -114,14 +114,16 @@ Codex (CLI, IDE extension and app) writes its limits into its session files, in
 `~/.codex/sessions` (or `$CODEX_HOME`), after every response, when you are signed in with a
 ChatGPT account. claude-limiti reads them from there, without changing them:
 
-- **in the Claude Code bar** a `Codex` line shows its limits. The windows depend on the plan:
+- **in the Claude Code bar** a `Codex` line shows its limits, **only if you used Codex in the last
+  24 hours** (if you do not use it, nothing shows). The windows depend on the plan:
   5 hours + weekly on paid plans, a single 30-day window on Free. When the data is not recent the
   line says how old it is (it only updates when you use Codex). Threshold and reset
   notifications work as for Claude;
-- **in the `/limiti` report** a Codex section with pace and daily budget;
-- **inside Codex**: Codex has no customizable status line, but it reads skills. When a `~/.codex`
-  folder exists, `node install.mjs` also installs the skill in `~/.agents/skills/limiti`: in Codex
-  ask *"how much usage is left?"*. Codex only, without Claude Code: `node install.mjs --codex`.
+- **in the `/limiti` report** a Codex section with pace and daily budget, if you used it in the
+  last 7 days;
+- **inside Codex**: Codex has no customizable status line, but it reads skills.
+  `node install.mjs --codex` installs the skill in `~/.agents/skills/limiti` (Claude Code untouched):
+  in Codex ask *"how much usage is left?"*.
 
 To hide Codex: `show_codex false`.
 

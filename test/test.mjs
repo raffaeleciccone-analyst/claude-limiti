@@ -561,6 +561,18 @@ console.log('12. Codex (OpenAI) limits');
   run(hrep, SL, [], input(20, 18), CX(hrep));
   rep = run(hrep, REPORT, [], '', CX(hrep)).stdout;
   check(rep.includes('5-hour limit: 20% used') && rep.includes('Codex (OpenAI), plus plan') && rep.includes('5h limit: 42% used') && rep.includes('7d limit: 15% used') && rep.includes('REACHED'), 'report: Claude and Codex together');
+  // not using Codex: an old session (window still running) shows nothing
+  const ho = newHome({ language: 'it' });
+  writeCodex(ho, [ev(free(5), now - 2 * 86400)]);
+  check(!strip(run(ho, SL, [], input(20, 18), CX(ho)).stdout).includes('Codex'), 'Codex not used in the last 24h: no line in the bar');
+  check(run(ho, REPORT, [], '', CX(ho)).stdout.includes('Codex'), 'report: Codex used 2 days ago still shown');
+  const ho2 = newHome({ language: 'it' });
+  writeCodex(ho2, [ev(free(5), now - 8 * 86400)]);
+  check(!run(ho2, REPORT, [], '', CX(ho2)).stdout.includes('Codex'), 'report: Codex not used for 8 days: hidden');
+  const hx = newHome({ language: 'it' });
+  mkdirSync(join(hx, '.codex'));
+  const ri = run(hx, INSTALL, [], '', { ...CX(hx), LIMITI_SCHEDULE_FILE: join(hx, 'x') });
+  check(!existsSync(join(hx, '.agents')) && ri.stdout.includes('--codex'), 'normal install with a Codex folder: no Codex skill, only a hint');
   const he = newHome({ language: 'it' });
   check(run(he, REPORT, [], '', CX(he)).stdout.startsWith('NESSUN_DATO'), 'report: nothing anywhere → NESSUN_DATO');
 

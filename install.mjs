@@ -4,7 +4,6 @@
 //   node install.mjs --force    replace a status line configured by something else (it is saved and restored on --remove)
 //   node install.mjs --remove   uninstall (keeps preferences and history)
 //   node install.mjs --codex    only the skill for Codex (~/.agents/skills), Claude Code untouched
-//   (a normal install also adds the Codex skill when a Codex folder exists)
 // Italian aliases: --forza, --rimuovi
 const [major] = process.versions.node.split('.').map(Number);
 if (major < 18) {
@@ -35,6 +34,7 @@ const T = {
     codexSkill: d => `Skill per Codex installata in ${d}: in Codex chiedi "quanto mi resta?".`,
     codexForeign: d => `In ${d} c'è già un'altra skill "limiti": non la tocco.`,
     codexRemoved: d => `Skill per Codex rimossa: ${d}`,
+    codexHint: 'Usi anche Codex? node install.mjs --codex aggiunge la skill per chiedergli i limiti.',
     kept: 'Preferenze e storico restano in ~/.claude (statusline-limiti.config.json, state/limiti-*): cancellali a mano se non servono.',
   },
   en: {
@@ -52,6 +52,7 @@ const T = {
     codexSkill: d => `Codex skill installed in ${d}: in Codex ask "how much usage is left?".`,
     codexForeign: d => `${d} already holds another "limiti" skill: leaving it alone.`,
     codexRemoved: d => `Codex skill removed: ${d}`,
+    codexHint: 'Using Codex too? node install.mjs --codex adds the skill to ask it about limits.',
     kept: 'Preferences and history stay in ~/.claude (statusline-limiti.config.json, state/limiti-*): delete them by hand if you do not need them.',
   },
 };
@@ -143,6 +144,8 @@ saveSettings();
 console.log(L.enabled);
 if (process.platform === 'win32' && /[$`%!]/.test(script)) console.log(L.oddPath(script));
 if (ours(current) && /statusline-limiti\.mjs/.test(current.command) && existsSync(LEGACY)) { try { unlinkSync(LEGACY); } catch {} }
-if (existsSync(CODEX_DIR) || isOurs(CODEX_DEST)) installCodex();
+// The Codex skill is installed only on request (--codex); an existing copy is kept up to date
+if (isOurs(CODEX_DEST)) installCodex();
+else if (existsSync(CODEX_DIR)) console.log(L.codexHint);
 
 console.log(`\n${L.done}`);

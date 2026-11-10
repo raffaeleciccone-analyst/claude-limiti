@@ -115,7 +115,8 @@ const now = Date.now() / 1000;
 let cx = null;
 if (loadConfig().show_codex) { try { cx = readCodex(); } catch {} }
 // Codex data counts while one of its windows is still running (or reset less than a day ago)
-const cxWins = (cx?.windows || []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
+// Shown only if Codex was used in the last 7 days
+const cxWins = (cx && now - cx.t < 7 * 86400 ? cx.windows : []).filter(w => w.resets_at && (w.resets_at > now || now - w.resets_at < 86400));
 if (!hasData && !cxWins.length) { console.log(L.none); process.exit(0); }
 if (hasData) claudeReport();
 if (cxWins.length) codexReport();

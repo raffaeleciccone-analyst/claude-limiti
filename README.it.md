@@ -117,14 +117,16 @@ Codex (CLI, estensione per l'editor e app) scrive i suoi limiti nei file delle s
 `~/.codex/sessions` (o `$CODEX_HOME`), dopo ogni risposta, solo se hai fatto l'accesso con un
 account ChatGPT. claude-limiti li legge da lì, senza modificarli:
 
-- **nella barra di Claude Code** compare una riga `Codex` con i suoi limiti. Le finestre dipendono
+- **nella barra di Claude Code** compare una riga `Codex` con i suoi limiti, **solo se hai usato
+  Codex nelle ultime 24 ore** (chi non lo usa non vede niente). Le finestre dipendono
   dal piano: 5 ore + settimanale sui piani a pagamento, una sola finestra di 30 giorni sul piano
   Free. Se il dato non è recente la riga dice di quando è (si aggiorna solo quando usi Codex).
   Notifiche alle soglie e all'azzeramento come per Claude;
-- **nel report** `/limiti` c'è una sezione Codex con ritmo e budget giornaliero;
-- **dentro Codex**: Codex non permette di personalizzare la sua barra, ma legge le skill. Se esiste
-  la cartella `~/.codex`, `node install.mjs` installa anche la skill in `~/.agents/skills/limiti`:
-  in Codex chiedi *"quanto mi resta?"*. Solo Codex, senza Claude Code: `node install.mjs --codex`.
+- **nel report** `/limiti` c'è una sezione Codex con ritmo e budget giornaliero, se l'hai usato
+  negli ultimi 7 giorni;
+- **dentro Codex**: Codex non permette di personalizzare la sua barra, ma legge le skill.
+  `node install.mjs --codex` installa la skill in `~/.agents/skills/limiti` (senza toccare Claude
+  Code): in Codex chiedi *"quanto mi resta?"*.
 
 Per nascondere Codex: `mostra_codex no`.
 
