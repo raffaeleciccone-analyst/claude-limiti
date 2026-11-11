@@ -1,7 +1,7 @@
 // Dependency-free tests: node test/test.mjs
 // Every run uses a temporary home folder, so your real configuration is never touched.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync, copyFileSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync, copyFileSync, chmodSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -476,8 +476,9 @@ for (const [name, content] of [['invalid JSON', '{oops'], ['null', 'null'], ['ar
   const r = spawnSync(pn, [INSTALL], { env: env(h), encoding: 'utf8' });
   const cmd = JSON.parse(readFileSync(join(h, '.claude', 'settings.json'), 'utf8')).statusLine?.command || '';
   const sk = readFileSync(join(h, '.claude', 'skills', 'limiti', 'SKILL.md'), 'utf8');
-  check(r.status === 0 && cmd.startsWith(fw(pn)) && cmd.includes('statusline.mjs'), 'private Node: status line runs it by full path');
-  check(sk.includes(`Bash(${fw(pn)} "\${CLAUDE_SKILL_DIR}/report.mjs")`) && !sk.includes('node "'), 'private Node: SKILL.md commands use it too');
+  const pnAs = [fw(pn), fw(realpathSync(pn))]; // macOS: the temp folder is reached through a link
+  check(r.status === 0 && pnAs.some(p => cmd.startsWith(p)) && cmd.includes('statusline.mjs'), 'private Node: status line runs it by full path');
+  check(pnAs.some(p => sk.includes(`Bash(${p} "\${CLAUDE_SKILL_DIR}/report.mjs")`)) && !/(^|[\s(`])node "/m.test(sk), 'private Node: SKILL.md commands use it too');
   const out = spawnSync(process.platform === 'win32' ? 'powershell.exe' : 'sh', process.platform === 'win32' ? ['-NoProfile', '-Command', cmd] : ['-c', cmd], { input: input(30, 10), env: env(h), encoding: 'utf8' }).stdout;
   check(/30%/.test(strip(out)), 'private Node: the status line command works from the shell');
   const normal = newHome();

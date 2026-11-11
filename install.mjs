@@ -11,7 +11,7 @@ if (major < 18) {
   process.exit(1);
 }
 
-const { cpSync, existsSync, readFileSync, rmSync, copyFileSync, lstatSync, unlinkSync } = await import('node:fs');
+const { cpSync, existsSync, readFileSync, rmSync, copyFileSync, lstatSync, unlinkSync, realpathSync } = await import('node:fs');
 const { join, dirname } = await import('node:path');
 const { homedir } = await import('node:os');
 const { fileURLToPath } = await import('node:url');
@@ -81,7 +81,8 @@ const LEGACY = join(CLAUDE_DIR, 'statusline-limiti.mjs'); // script location of 
 // installed system-wide and "node" does not need to be on the PATH.
 const RUNTIME = join(CLAUDE_DIR, 'limiti-runtime');
 const fwd = p => p.split('\\').join('/');
-const portable = fwd(process.execPath).toLowerCase().startsWith(fwd(RUNTIME).toLowerCase() + '/');
+const real = p => { try { return realpathSync(p); } catch { return p; } }; // macOS: /var is a link to /private/var
+const portable = [RUNTIME, real(RUNTIME)].some(d => fwd(real(process.execPath)).toLowerCase().startsWith(fwd(d).toLowerCase() + '/'));
 function nodeCommand() {
   if (!portable) return 'node';
   const p = fwd(process.execPath);
