@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (branch `codex`)
+## 1.3.0 — 2026-11-11
 
 - **One-command install, no Node.js needed beforehand**: `install.ps1` (Windows) and `install.sh`
   (macOS, Linux). If Node.js 18+ is missing they download the official LTS from nodejs.org
