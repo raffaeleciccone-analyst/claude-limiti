@@ -15,6 +15,7 @@ const { cpSync, existsSync, readFileSync, rmSync, copyFileSync, lstatSync, unlin
 const { join, dirname } = await import('node:path');
 const { homedir } = await import('node:os');
 const { fileURLToPath } = await import('node:url');
+const { execFileSync } = await import('node:child_process');
 const { CLAUDE_DIR, loadConfig, detectLanguage, writeAtomic } = await import('./limiti/common.mjs');
 const { CODEX_DIR } = await import('./limiti/codex.mjs');
 
@@ -35,6 +36,8 @@ const T = {
     codexForeign: d => `In ${d} c'è già un'altra skill "limiti": non la tocco.`,
     codexRemoved: d => `Skill per Codex rimossa: ${d}`,
     codexHint: 'Usi anche Codex? node install.mjs --codex aggiunge la skill per chiedergli i limiti.',
+    removedRuntime: d => `Copia privata di Node rimossa: ${d}`,
+    runtimeLeft: d => `La copia privata di Node in ${d} è in uso: cancella la cartella a mano.`,
     kept: 'Preferenze e storico restano in ~/.claude (statusline-limiti.config.json, state/limiti-*): cancellali a mano se non servono.',
   },
   en: {
@@ -53,6 +56,8 @@ const T = {
     codexForeign: d => `${d} already holds another "limiti" skill: leaving it alone.`,
     codexRemoved: d => `Codex skill removed: ${d}`,
     codexHint: 'Using Codex too? node install.mjs --codex adds the skill to ask it about limits.',
+    removedRuntime: d => `Private copy of Node removed: ${d}`,
+    runtimeLeft: d => `The private copy of Node in ${d} is in use: delete the folder by hand.`,
     kept: 'Preferences and history stay in ~/.claude (statusline-limiti.config.json, state/limiti-*): delete them by hand if you do not need them.',
   },
 };
@@ -70,6 +75,31 @@ const BACKUP = SETTINGS + '.bak-limiti';
 const PREVIOUS = join(CLAUDE_DIR, 'statusline-limiti.precedente.json');
 const LEGACY = join(CLAUDE_DIR, 'statusline-limiti.mjs'); // script location of early versions
 
+// ---------- which Node runs the scripts ----------
+// install.ps1 / install.sh bring a private copy of Node into ~/.claude/limiti-runtime when the
+// computer has none. Then every command uses that copy by its full path, so nothing has to be
+// installed system-wide and "node" does not need to be on the PATH.
+const RUNTIME = join(CLAUDE_DIR, 'limiti-runtime');
+const fwd = p => p.split('\\').join('/');
+const portable = fwd(process.execPath).toLowerCase().startsWith(fwd(RUNTIME).toLowerCase() + '/');
+function nodeCommand() {
+  if (!portable) return 'node';
+  const p = fwd(process.execPath);
+  if (!/\s/.test(p)) return p; // unquoted: runs the same in cmd, PowerShell, Git Bash and sh
+  if (process.platform === 'win32') {
+    // PowerShell does not run a quoted program name: use the short 8.3 name when there is one
+    try {
+      const short = execFileSync('cmd.exe', ['/d', '/c', `for %I in ("${process.execPath}") do @echo %~sI`], { encoding: 'utf8' }).trim();
+      if (short && !/\s/.test(short) && existsSync(short)) return fwd(short);
+    } catch {}
+    return `"${p}"`;
+  }
+  return `'${p.replace(/'/g, `'\\''`)}'`;
+}
+const NODE = nodeCommand();
+// The SKILL.md files call `node "<script>"`: point them at the same Node
+const withNode = text => (NODE === 'node' ? text : text.split('node "').join(`${NODE} "`));
+
 // ---------- skill for Codex (and other agents reading ~/.agents/skills) ----------
 const CODEX_DEST = join(homedir(), '.agents', 'skills', 'limiti');
 const CODEX_TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), 'codex-skill', 'SKILL.md');
@@ -81,7 +111,7 @@ function installCodex() {
   cpSync(SRC, CODEX_DEST, { recursive: true });
   // Codex does not expand CLAUDE_SKILL_DIR: the skill gets the absolute path written in
   const dir = CODEX_DEST.split('\\').join('/');
-  writeAtomic(join(CODEX_DEST, 'SKILL.md'), readFileSync(CODEX_TEMPLATE, 'utf8').split('{{DIR}}').join(dir));
+  writeAtomic(join(CODEX_DEST, 'SKILL.md'), withNode(readFileSync(CODEX_TEMPLATE, 'utf8').split('{{DIR}}').join(dir)));
   writeAtomic(join(CODEX_DEST, MARK), 'installed by claude-limiti install.mjs\n');
   console.log(L.codexSkill(CODEX_DEST));
 }
@@ -90,7 +120,7 @@ if (codexOnly && !remove) { installCodex(); process.exit(0); }
 const script = join(DEST, 'statusline.mjs').replace(/\\/g, '/');
 // Windows: double quotes (forward slashes work in cmd, PowerShell and Git Bash).
 // Elsewhere: single quotes, so a home folder containing $ or ` is never expanded by the shell.
-const COMMAND = process.platform === 'win32' ? `node "${script}"` : `node '${script.replace(/'/g, `'\\''`)}'`;
+const COMMAND = process.platform === 'win32' ? `${NODE} "${script}"` : `${NODE} '${script.replace(/'/g, `'\\''`)}'`;
 const ours = sl => typeof sl?.command === 'string' && (/skills[\\/]limiti[\\/]statusline\.mjs/.test(sl.command) || /[\\/]statusline-limiti\.mjs["']?\s*$/.test(sl.command));
 
 let settings = {};
@@ -123,6 +153,12 @@ if (remove) {
     const ps = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
     spawnSync(ps, ['-NoProfile', '-NonInteractive', '-Command', "Get-ScheduledTask -TaskName 'claude-limiti reset *' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false"], { stdio: 'ignore', windowsHide: true, timeout: 20000 });
   }
+  // On Windows the running node.exe is locked: install.ps1 deletes the folder once Node has exited
+  if (existsSync(RUNTIME) && !(portable && process.platform === 'win32')) {
+    // The private Node: removable unless it is the one running right now (Windows locks it)
+    try { rmSync(RUNTIME, { recursive: true, force: true }); console.log(L.removedRuntime(RUNTIME)); }
+    catch { console.log(L.runtimeLeft(RUNTIME)); }
+  }
   console.log(L.kept);
   process.exit(0);
 }
@@ -136,6 +172,7 @@ if (current && !ours(current)) {
 // Fresh copy, so files removed in newer versions do not linger
 if (existsSync(DEST) || isLink(DEST)) rmSync(DEST, { recursive: true, force: true });
 cpSync(SRC, DEST, { recursive: true });
+if (NODE !== 'node') writeAtomic(join(DEST, 'SKILL.md'), withNode(readFileSync(join(DEST, 'SKILL.md'), 'utf8')));
 console.log(L.skill(DEST));
 
 const keep = ours(current) ? current : {}; // keeps e.g. "padding" set by the user

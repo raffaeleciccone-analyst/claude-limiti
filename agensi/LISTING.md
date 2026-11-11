@@ -31,7 +31,8 @@ Claude Code usage limits always in view:
   aligned Claude and Codex rows. Free plan (30-day window) and paid plans (5 hours + weekly).
 - **On-demand report**: ask "how much usage is left?" and get status, pace, forecast and history.
 
-Everything runs locally: no network connections, no dependencies, no telemetry. Node.js 18+.
+Everything runs locally: no network connections, no dependencies, no telemetry. One install command,
+nothing to set up first (if Node.js is missing, a private copy is fetched from nodejs.org).
 Works on Windows, macOS and Linux, in any terminal including the VS Code integrated one.
 
 The skill never installs anything on its own: it explains what installing changes and asks for your
@@ -44,4 +45,5 @@ does not provide subscription limits). For Codex: signed in with a ChatGPT accou
 ## Note for the reviewer (if the form has a field for it)
 
 The ZIP contains only SKILL.md (instructions, no code). The tool itself is installed from the public
-GitHub repository, only after the user agrees; the skill tells the agent to explain the changes first.
+GitHub repository, only after the user agrees; the skill tells the agent to explain the changes first
+and offers the links to read the short install scripts before running them.

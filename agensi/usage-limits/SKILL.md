@@ -42,33 +42,36 @@ To change how the status line looks, the installed `/limiti` skill handles it
 Before running anything, tell the user in plain words what installing does, and ask for an
 explicit yes:
 
-- it downloads the project from GitHub into a folder of their choice;
+- it downloads the latest release from GitHub; if the computer has no Node.js 18 or later, it also
+  downloads the official Node.js LTS from nodejs.org (SHA-256 checked) and keeps only its
+  executable in `~/.claude/limiti-runtime` (no admin rights, nothing installed system-wide);
 - for Claude Code: copies the skill to `~/.claude/skills/limiti` and sets the `statusLine` entry in
   `~/.claude/settings.json` (a backup is saved once as `settings.json.bak-limiti`). If they already
   have a status line, the installer stops and changes nothing;
 - for Codex: only copies a skill to `~/.agents/skills/limiti`; Codex itself is not changed;
-- it can be removed at any time with `node install.mjs --remove`.
+- it can be removed at any time (same command with `--remove`).
 
-Requirements: Node.js 18 or later (`node --version`) and git (`git --version`).
+Nothing needs to be installed first. The install scripts are short and public; if the user wants
+to read them first, give these links and wait:
+https://github.com/raffaeleciccone-analyst/claude-limiti/blob/main/install.ps1 (Windows) and
+https://github.com/raffaeleciccone-analyst/claude-limiti/blob/main/install.sh (macOS, Linux).
 
 Steps, once the user agrees:
 
-1. Clone the repository into the folder the user chose:
-   `git clone https://github.com/raffaeleciccone-analyst/claude-limiti.git`
-   Without git: tell the user to download the ZIP of the latest release from
-   https://github.com/raffaeleciccone-analyst/claude-limiti/releases, extract it, and continue
-   from that folder.
-2. If the user wants to look at the code first, point them to the files in that folder and wait.
-3. From the project folder run:
-   - Claude Code: `node install.mjs`
-   - Codex only: `node install.mjs --codex`
-   - both: run both commands.
-4. If the installer says another status line is already configured, explain the choice and run
-   `node install.mjs --force` only if the user explicitly asks to replace it (the old one is saved
-   and restored on uninstall).
-5. Tell the user to restart Claude Code: the bars appear after the first response.
+1. Run the install command for their system:
+   - Windows (PowerShell):
+     `irm https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.ps1 | iex`
+   - macOS / Linux:
+     `curl -fsSL https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.sh | sh`
+2. Options go at the end: `--codex` (only the Codex skill), `--force`, `--remove`.
+   - Windows: `& ([scriptblock]::Create((irm https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.ps1))) --codex`
+   - macOS / Linux: `curl -fsSL https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.sh | sh -s -- --codex`
+3. If the installer says another status line is already configured, explain the choice and use
+   `--force` only if the user explicitly asks to replace it (the old one is saved and restored on
+   uninstall).
+4. Tell the user to restart Claude Code: the bars appear after the first response.
 
-Updating later: `git pull`, then `node install.mjs` again (preferences are kept).
+Updating later: run the same command again (preferences are kept).
 
 ## Optional features
 

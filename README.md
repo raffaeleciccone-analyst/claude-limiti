@@ -34,11 +34,36 @@ skill for a detailed report and for customizing the bar just by asking Claude.
 - [Claude Code](https://code.claude.com) with a claude.ai **Pro, Max or Ultra** plan: only then
   does Claude Code provide the limits, after the first response of each session. With an API key
   the bar says that limits are unavailable.
-- [Node.js](https://nodejs.org) 18 or later.
+- Nothing to install first: if the computer has no [Node.js](https://nodejs.org) 18 or later, the
+  install command downloads a private copy (see below).
 
 Works in any terminal, including the VS Code integrated terminal, on Windows, macOS and Linux.
 
 ## Install
+
+One command, no need to install Node.js first.
+
+**Windows** (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.ps1 | iex
+```
+
+**macOS and Linux** (Terminal):
+
+```
+curl -fsSL https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.sh | sh
+```
+
+Then restart Claude Code.
+
+What it does: if the computer already has Node.js 18 or later it uses it; otherwise it downloads the
+official LTS from nodejs.org, checks its SHA-256 and keeps only the executable in
+`~/.claude/limiti-runtime` (about 100 MB, no admin rights, nothing installed system-wide). Then it
+downloads the latest claude-limiti release from GitHub and runs `install.mjs`.
+[install.ps1](install.ps1) and [install.sh](install.sh) are short: you can read them first.
+
+**Alternatively**, if you already have Node.js and git:
 
 ```
 git clone https://github.com/raffaeleciccone-analyst/claude-limiti.git
@@ -53,7 +78,7 @@ The installer copies the skill to `~/.claude/skills/limiti` and enables the stat
 If you already have a status line, it is left alone and the installer stops; `node install.mjs --force`
 replaces it, saves it, and puts it back if you uninstall.
 
-**Update:** `git pull`, then `node install.mjs` again. Your preferences are kept.
+**Update:** run the same command again (or `git pull`, then `node install.mjs`). Your preferences are kept.
 
 ## Customize
 
@@ -146,7 +171,8 @@ Each line says OK or CHECK. A CHECK is worth an issue on GitHub.
 
 ## Privacy and security
 
-Everything stays on your computer: no network connections and no dependencies. The data comes
+Everything stays on your computer: the bar makes no network connections and has no dependencies
+(only the install command downloads claude-limiti from GitHub and, if missing, Node.js from nodejs.org). The data comes
 from Claude Code itself; the history is stored in `~/.claude/state/limiti-utilizzo.json`
 (percentages, times, Claude Code session IDs and, behind a spend-limit gateway, the amount spent; last 8 days). Text from outside (model name, folder, git branch) is
 stripped of control characters before being printed, and notifications are launched with absolute
@@ -158,6 +184,10 @@ read is kept in `~/.claude/state/limiti-codex.json`.
 ```
 node install.mjs --remove
 ```
+
+If you installed with the one command: on Windows
+`& ([scriptblock]::Create((irm https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.ps1))) --remove`, on macOS and Linux
+`curl -fsSL https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.sh | sh -s -- --remove`. The private copy of Node is removed too.
 
 Removes the status line (restoring the previous one, if any) and the skill (the Codex one too, if
 installed). Preferences and

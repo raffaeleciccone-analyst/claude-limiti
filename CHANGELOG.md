@@ -2,6 +2,10 @@
 
 ## Unreleased (branch `codex`)
 
+- **One-command install, no Node.js needed beforehand**: `install.ps1` (Windows) and `install.sh`
+  (macOS, Linux). If Node.js 18+ is missing they download the official LTS from nodejs.org
+  (SHA-256 checked) into `~/.claude/limiti-runtime`, a private copy used by full path; `--remove`
+  deletes it.
 - Diagnostics (`report.mjs diagnostics`): no more false alarms. Resets off the hour are normal (the
   5-hour window now resets at e.g. 14:20); it now flags only a reset time that moves within a window.
   A window dropped by Claude Code at its reset time no longer counts as "changed without a response".

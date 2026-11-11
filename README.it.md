@@ -35,11 +35,36 @@ semplicemente chiedendolo a Claude.
 - [Claude Code](https://code.claude.com) con un abbonamento claude.ai **Pro, Max o Ultra**: solo
   in questo caso Claude Code fornisce i limiti, dopo la prima risposta di ogni sessione. Con una
   chiave API la barra dice che i limiti non sono disponibili.
-- [Node.js](https://nodejs.org) 18 o successivo.
+- Niente da installare prima: se sul computer non c'è [Node.js](https://nodejs.org) 18 o
+  successivo, l'installazione ne scarica una copia privata (vedi sotto).
 
 Funziona in qualsiasi terminale, anche quello integrato di VS Code, su Windows, macOS e Linux.
 
 ## Installazione
+
+Un solo comando, senza dover installare Node.js prima.
+
+**Windows** (PowerShell):
+
+```
+irm https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.ps1 | iex
+```
+
+**macOS e Linux** (Terminale):
+
+```
+curl -fsSL https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.sh | sh
+```
+
+Poi riavvia Claude Code.
+
+Cosa fa il comando: se il computer ha già Node.js 18 o successivo usa quello; altrimenti scarica la
+versione LTS ufficiale da nodejs.org, ne controlla l'impronta SHA-256 e tiene solo l'eseguibile in
+`~/.claude/limiti-runtime` (circa 100 MB, senza permessi di amministratore e senza installare nulla nel
+sistema). Poi scarica l'ultima versione di claude-limiti da GitHub ed esegue `install.mjs`.
+I file [install.ps1](install.ps1) e [install.sh](install.sh) sono brevi: puoi leggerli prima.
+
+**In alternativa**, se hai già Node.js e git:
 
 ```
 git clone https://github.com/raffaeleciccone-analyst/claude-limiti.git
@@ -54,7 +79,7 @@ L'installatore copia la skill in `~/.claude/skills/limiti` e attiva la status li
 Se hai già una status line, l'installatore non la tocca e si ferma; con `node install.mjs --forza`
 la sostituisce, la salva e la rimette se un giorno disinstalli.
 
-**Aggiornare:** `git pull` e di nuovo `node install.mjs`. Le tue preferenze restano.
+**Aggiornare:** di nuovo lo stesso comando (oppure `git pull` e `node install.mjs`). Le tue preferenze restano.
 
 ## Personalizzazione
 
@@ -149,7 +174,8 @@ Ogni riga dice OK o DA GUARDARE. Un DA GUARDARE merita una segnalazione su GitHu
 
 ## Privacy e sicurezza
 
-Tutto resta sul tuo computer: nessuna connessione di rete e nessuna dipendenza esterna. I dati
+Tutto resta sul tuo computer: la barra non fa nessuna connessione di rete e non ha dipendenze esterne
+(solo il comando di installazione scarica claude-limiti da GitHub e, se manca, Node.js da nodejs.org). I dati
 arrivano da Claude Code stesso; lo storico è salvato in `~/.claude/state/limiti-utilizzo.json`
 (percentuali, orari, identificativi delle sessioni di Claude Code e, con un gateway a limite di spesa, l'importo speso; ultimi 8 giorni). I testi che arrivano da fuori (nome del modello,
 cartella, branch git) vengono ripuliti dai caratteri di controllo prima di essere stampati, e le
@@ -161,6 +187,10 @@ limiti (mai i messaggi), e l'ultimo valore letto è tenuto in `~/.claude/state/l
 ```
 node install.mjs --rimuovi
 ```
+
+Se hai installato con il comando unico: su Windows
+`& ([scriptblock]::Create((irm https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.ps1))) --rimuovi`, su macOS e Linux
+`curl -fsSL https://raw.githubusercontent.com/raffaeleciccone-analyst/claude-limiti/main/install.sh | sh -s -- --rimuovi`. Viene tolta anche la copia privata di Node.
 
 Toglie la status line (rimettendo quella che avevi prima, se c'era) e la skill (anche quella per
 Codex, se installata). Preferenze e

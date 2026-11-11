@@ -1,7 +1,7 @@
 // Dependency-free tests: node test/test.mjs
 // Every run uses a temporary home folder, so your real configuration is never touched.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, readdirSync, statSync, copyFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -463,6 +463,28 @@ for (const [name, content] of [['invalid JSON', '{oops'], ['null', 'null'], ['ar
   writeFileSync(join(h2, '.claude', 'statusline-limiti.mjs'), '// old');
   writeFileSync(join(h2, '.claude', 'settings.json'), JSON.stringify({ statusLine: { type: 'command', command: 'node ~/.claude/statusline-limiti.mjs' } }));
   check(run(h2, INSTALL).status === 0 && !existsSync(join(h2, '.claude', 'statusline-limiti.mjs')), 'upgrade from the first version removes the old script');
+}
+{
+  // Private Node brought by install.ps1 / install.sh: every command uses it by full path
+  const h = newHome();
+  const rt = join(h, '.claude', 'limiti-runtime');
+  mkdirSync(rt);
+  const pn = join(rt, process.platform === 'win32' ? 'node.exe' : 'node');
+  copyFileSync(process.execPath, pn);
+  if (process.platform !== 'win32') chmodSync(pn, 0o755);
+  const fw = p => p.split('\\').join('/');
+  const r = spawnSync(pn, [INSTALL], { env: env(h), encoding: 'utf8' });
+  const cmd = JSON.parse(readFileSync(join(h, '.claude', 'settings.json'), 'utf8')).statusLine?.command || '';
+  const sk = readFileSync(join(h, '.claude', 'skills', 'limiti', 'SKILL.md'), 'utf8');
+  check(r.status === 0 && cmd.startsWith(fw(pn)) && cmd.includes('statusline.mjs'), 'private Node: status line runs it by full path');
+  check(sk.includes(`Bash(${fw(pn)} "\${CLAUDE_SKILL_DIR}/report.mjs")`) && !sk.includes('node "'), 'private Node: SKILL.md commands use it too');
+  const out = spawnSync(process.platform === 'win32' ? 'powershell.exe' : 'sh', process.platform === 'win32' ? ['-NoProfile', '-Command', cmd] : ['-c', cmd], { input: input(30, 10), env: env(h), encoding: 'utf8' }).stdout;
+  check(/30%/.test(strip(out)), 'private Node: the status line command works from the shell');
+  const normal = newHome();
+  run(normal, INSTALL);
+  check(JSON.parse(readFileSync(join(normal, '.claude', 'settings.json'), 'utf8')).statusLine.command.startsWith('node '), 'system Node: command stays "node ..."');
+  const rm = spawnSync(pn, [INSTALL, '--remove'], { env: env(h), encoding: 'utf8' });
+  check(rm.status === 0 && (process.platform === 'win32' ? existsSync(rt) : !existsSync(rt)), 'private Node: --remove deletes it (on Windows install.ps1 does, after Node exits)');
 }
 
 console.log('11. SKILL.md');
