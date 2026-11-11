@@ -368,6 +368,18 @@ if (process.platform !== 'win32') {
   check(/4 letture, 1 sessioni/.test(d) && /senza una nuova risposta: 1 su 3/.test(d) && /indietro.*: 1/.test(d), 'diagnostics report detects the cases');
   setConfig(h, { language: 'en', diagnostics: true });
   check(run(h, REPORT, ['diagnostics']).stdout.includes('readings'), 'diagnostics report in English');
+  // Real cases seen on 10/11/2026: 5-hour resets at :20, and the expired window dropped at its reset time
+  const T = 1794316800 - 60, F = join(h, '.claude', 'state', 'limiti-diagnostica.jsonl');
+  const line = (t, a, h5, d7) => JSON.stringify({ t, s: 'x', a, h5, d7, f: 0 });
+  writeFileSync(F, [line(T, 5, [99, 1794316800], [30, 1794344400]), line(T + 61, 5, null, [30, 1794344400]),
+    line(T + 100, 6, [1, 1794334800], [30, 1794344400])].join('\n') + '\n');
+  setConfig(h, { language: 'it', diagnostics: true });
+  const d2 = run(h, REPORT, ['diagnosi']).stdout;
+  check(/si sposta nella stessa finestra: 0 → OK/.test(d2) && /senza una nuova risposta: 0 su 2 coppie → OK/.test(d2) && /Reset visti: 3, di cui 2 non/.test(d2), 'diagnostics: reset at :20 and expired window dropped are not false alarms');
+  writeFileSync(F, [line(T, 5, [10, 1794316800 + 540], null), line(T + 50, 6, [11, 1794316800 + 660], null),
+    line(T + 60, 6, [12, 1794316800 + 660], null)].join('\n') + '\n');
+  const d3 = run(h, REPORT, ['diagnosi']).stdout;
+  check(/si sposta nella stessa finestra: 1 → DA GUARDARE/.test(d3) && /senza una nuova risposta: 1 su 2/.test(d3), 'diagnostics: moving reset time and silent change still detected');
 }
 
 console.log('8. report.mjs');

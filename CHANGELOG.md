@@ -2,6 +2,9 @@
 
 ## Unreleased (branch `codex`)
 
+- Diagnostics (`report.mjs diagnostics`): no more false alarms. Resets off the hour are normal (the
+  5-hour window now resets at e.g. 14:20); it now flags only a reset time that moves within a window.
+  A window dropped by Claude Code at its reset time no longer counts as "changed without a response".
 - Experimental support for **Codex (OpenAI)**: its limits are read from its session files
   (`~/.codex/sessions`, plain or `.jsonl.zst`), never modified. Windows are read with their own
   length (5h + weekly on paid plans, 30 days on Free).
