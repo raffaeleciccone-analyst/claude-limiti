@@ -52,6 +52,8 @@ prima di finirli.
 - F15. **Mod di Claude Code "usage-limits"** [deciso 17/11, come aggiunta]: avvisi dentro Claude Code
   (messaggio a comparsa nella finestra) quando passi una soglia o il limite si azzera. Non sostituisce la
   barra: la barra resta la status line (un mod non può sostituirla). Si installa con `/plugin install`.
+  Nel pannello grafico di VS Code (dove la status line non c'è) il mod è l'unico modo di vedere i limiti:
+  riga di stato con i limiti + riquadro + avvisi. [verificato 17/11]
 
 ## 3b. Da dove arrivano i dati
 - D1. Claude Code passa alla status line, dopo ogni risposta, i limiti dell'account (percentuale e ora
@@ -123,8 +125,10 @@ Ogni criterio è (o diventa) un test automatico in `test/test.mjs`. "Finito" = t
 **Mod usage-limits (F15)** — test da scrivere quando si inizia F15
 - C29 (F15). Passo l'80% → dentro Claude Code compare un avviso "Limite 5 ore all'80%", una volta sola anche con due finestre aperte.
 - C30 (F15). Il limite si azzera mentre Claude Code è aperto → avviso "Limite 5 ore azzerato", una volta sola.
-- C32 (F15, F4). Mod e status line installati, passo l'80% → arrivano la notifica di Windows E l'avviso
+- C32 (F15, F4). Nel terminale, mod e status line installati, passo l'80% → arrivano la notifica di Windows E l'avviso
   dentro Claude Code, ciascuno una volta sola (non due notifiche di Windows).
+- C36 (F15). Pannello grafico di VS Code (dove la barra non c'è), passo l'80% → avviso dentro il pannello e
+  riga di stato con i limiti; nessun errore se la notifica di Windows non è disponibile lì. [verificato fattibile 17/11]
 - C31 (F15). Installo il mod senza la status line (o il contrario) → ognuno funziona da solo, nessun errore.
 
 **Installazione (F12)**
@@ -150,7 +154,10 @@ Ogni criterio è (o diventa) un test automatico in `test/test.mjs`. "Finito" = t
 - ~~Q2. Mod "usage-limits"~~ → RISOLTA 17/11: sì, come aggiunta per gli avvisi dentro Claude Code (F15, C29–C31).
 - ~~Q5. Doppio avviso col mod~~ → RISOLTA 17/11: tutti e due (Windows serve se sei su un'altra finestra,
   l'avviso interno se guardi Claude Code). Vedi C32.
-- Q6. Il mod funziona anche nel pannello grafico di VS Code, dove la status line non si vede? Da verificare: se sì, è il vantaggio principale del mod.
+- ~~Q6. Il mod si vede nel pannello di VS Code?~~ → RISOLTA 17/11 con prova reale (mod di prova, Claude Code 2.1.326):
+  SÌ. Nel pannello grafico di VS Code il mod riceve i limiti e mostra avviso a comparsa, riga di stato e
+  riquadro. È il vantaggio principale del mod: lì la status line non c'è. La notifica di Windows dal mod
+  invece NON parte in VS Code (`no-surface`). Vedi C36.
 - ~~Q3. Notifica a sessioni chiuse su macOS e Linux~~ → RISOLTA 17/11: sì (F5, C33–C35).
 - ~~Q4. Prova su Mac/Linux veri~~ → RISOLTA 17/11 a metà: Linux si prova in una macchina Linux nel PC
   dell'utente (Docker Desktop, già installato: va acceso). Il Mac resta NON provato: nel README resta scritto.

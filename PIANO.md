@@ -111,7 +111,8 @@ Prova che i test valgono (17/11): soglia del rosso spostata da 80 a 90 → falli
 ## 6. Da fare
 - [ ] **F14 barra dentro Codex**: aspettare una versione stabile di Codex con `status_line_provider` (PR del 17/11,
       vedi HANDOFF.md). Poi: piccolo server MCP in Node, stesso disegno della barra, test C25–C28.
-- [ ] **F15 mod usage-limits**: prima verificare Q6 (si vede nel pannello di VS Code?). Test C29–C32.
+- [ ] **F15 mod usage-limits**: Q6 verificata (sì, nel pannello di VS Code funziona; notifica di Windows no). Test C29–C32, C36.
+      Riquadro: usare un valore reattivo (`atom`) perché si ridisegni quando arrivano i limiti (la prova non lo faceva).
 - [ ] **F5 su macOS (launchd) e Linux (systemd-run)**: test C33–C35 per quei sistemi; prova reale su Linux con
       Docker Desktop (va acceso).
 - [ ] Scheda gratis su Agensi (cartella `agensi/`, serve un account).
