@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 — 2026-11-17
+
+- Limit reached: the bar shows 100% at once. A request refused at the limit adds no API time, so it
+  was taken for old data and the bar stayed at 99%. Found by the diagnostics after a week of real use.
+  A reading now also counts as fresh when the limits a session receives change.
+- Installer: clearer hint for Codex users (its limits appear in the Claude Code bar; inside Codex, ask the skill).
+
 ## 1.3.0 — 2026-11-11
 
 - **One-command install, no Node.js needed beforehand**: `install.ps1` (Windows) and `install.sh`
