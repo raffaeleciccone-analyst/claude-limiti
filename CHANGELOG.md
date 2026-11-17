@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.2 — 2026-11-17
+
+- Spec-driven: `SPEC.md` (what it does, what it does not, 35 acceptance criteria) and `PIANO.md` (how, and
+  which test checks each criterion). New tests for the criteria that had none (289 checks).
+- Turning `scheduled_reset` off now cancels the reset notifications still waiting (before, only uninstalling did).
+
 ## 1.3.1 — 2026-11-17
 
 - Limit reached: the bar shows 100% at once. A request refused at the limit adds no API time, so it
