@@ -207,6 +207,12 @@ console.log('6. Several sessions, history, forecast, state');
     const sw = JSON.parse(S('B', 5000, 5, 5)); sw.rate_limits.seven_day.resets_at = now + 86400;
     show(JSON.stringify(sw));
     check(readState(g).rate_limits.seven_day.used_percentage === 5, 'account switch / earlier weekly reset is accepted');
+    const g3 = newHome({ language: 'it' });            // limit reached: the refused request adds no API time
+    run(g3, SL, [], S('D', 1000, 90, 30)); run(g3, SL, [], S('D', 2000, 99, 38));
+    const full = strip(run(g3, SL, [], S('D', 2000, 100, 39)).stdout);
+    check(full.includes('100%') && readState(g3).rate_limits.five_hour.used_percentage === 100, 'limit reached (99 → 100% with no new API time) is shown at once');
+    run(g3, SL, [], S('E', 500, 40, 20)); run(g3, SL, [], S('E', 500, 40, 20));
+    check(readState(g3).rate_limits.five_hour.used_percentage === 100, 'an idle session repeating the same old values still cannot lower the bar');
     const m1 = readFileSync(statePath(g), 'utf8');
     show(JSON.stringify(sw));
     check(readFileSync(statePath(g), 'utf8') === m1, 'nothing changed: state file not rewritten');

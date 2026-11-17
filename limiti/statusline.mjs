@@ -135,7 +135,8 @@ const st = readState();
 // Several sessions share the state, and Claude Code keeps passing an idle session the
 // last limits IT received, which may be hours old. One rule decides what to trust:
 //   a value counts if it is FRESH, or if there is nothing better.
-// Fresh = this session just got a response: its total API time grew since we last saw it.
+// Fresh = this session just got a response: its total API time grew since we last saw it,
+// or the limits it receives changed (a request refused at 100% adds no API time).
 // "Nothing better" = no stored value, or the stored one belongs to a window already reset.
 // Without a session id or API time (older Claude Code) every value counts, as with one session.
 const W = { five_hour: { len: 5 * 3600, key: 'h5', rk: 'r5' }, seven_day: { len: 7 * 86400, key: 'd7', rk: 'r7' } };
@@ -143,7 +144,10 @@ const sid = typeof d.session_id === 'string' && d.session_id ? clean(d.session_i
 const seen = sid ? st.sessioni[sid] : null;
 const apiTime = num(d.cost?.total_api_duration_ms);
 const trackable = !!sid && apiTime != null;
-const isFresh = !trackable || (num(seen?.a) != null && apiTime > seen.a);
+// What this session received, as a short signature: an idle session repeats it unchanged,
+// while a request refused at 100% brings new limits without adding API time.
+const sig = ['five_hour', 'seven_day'].map(k => incoming[k] ? `${incoming[k].used_percentage}@${incoming[k].resets_at}` : '-').join('|');
+const isFresh = !trackable || (num(seen?.a) != null && (apiTime > seen.a || (typeof seen.v === 'string' && seen.v !== sig)));
 const cur = {}, fresh = {};
 for (const k of Object.keys(W)) {
   fresh[k] = !!incoming[k] && isFresh;
@@ -579,7 +583,7 @@ try {
     for (const [id, v] of Object.entries(sessions)) if (!v || !(now - v.t < 2 * 86400)) delete sessions[id];
     const prevEntry = sessions[sid];
     // Remembers the session's API time, to recognize its next response as fresh
-    if (!prevEntry || prevEntry.a !== apiTime || !(now - prevEntry.t < 3600)) sessions[sid] = { t: Math.floor(now), a: apiTime };
+    if (!prevEntry || prevEntry.a !== apiTime || prevEntry.v !== sig || !(now - prevEntry.t < 3600)) sessions[sid] = { t: Math.floor(now), a: apiTime, v: sig };
     out.sessioni = sessions;
   }
   // "updated" moves with new data, or every 5 minutes while sessions keep reporting
