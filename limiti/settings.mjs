@@ -3,7 +3,7 @@
 //   node settings.mjs styles          preview of every bar style   (alias: stili)
 //   node settings.mjs <key> <value>   change one setting (validated)
 //   node settings.mjs reset           back to defaults
-import { STYLES, SCHEMA, DEFAULTS, KEY_ALIASES, canonicalKey, readUserConfig, saveUserConfig, detectLanguage } from './common.mjs';
+import { STYLES, SCHEMA, DEFAULTS, KEY_ALIASES, canonicalKey, readUserConfig, saveUserConfig, detectLanguage, cancelScheduledResets } from './common.mjs';
 
 const T = {
   it: {
@@ -80,13 +80,16 @@ if (!cmd) {
   console.log(`\n${L.note}`);
 } else if (cmd === 'reset') {
   saveUserConfig({ ...DEFAULTS });
+  if (cfg.scheduled_reset && !DEFAULTS.scheduled_reset) await cancelScheduledResets(); // SPEC C35
   console.log(T[detectLanguage(DEFAULTS)].resetDone);
 } else {
   const key = canonicalKey(cmd);
   if (!key) { console.log(L.unknown(cmdRaw, Object.keys(SCHEMA).join(', '))); process.exit(1); }
   if (!val) { console.log(L.missing(key, ALLOWED[key])); process.exit(1); }
+  const wasScheduled = cfg.scheduled_reset;
   try { cfg[key] = SCHEMA[key].parse(val); } catch { console.log(L.invalid(key, ALLOWED[key])); process.exit(1); }
   saveUserConfig(cfg);
+  if (key === 'scheduled_reset' && wasScheduled && !cfg.scheduled_reset) await cancelScheduledResets(); // SPEC C35
   const M = T[detectLanguage(cfg)]; // messages follow a language change immediately
   console.log(`OK: ${key} = ${fmt(cfg[key])}`);
   console.log(`${M.preview}: 5h ${preview(cfg.style)}  60%`);

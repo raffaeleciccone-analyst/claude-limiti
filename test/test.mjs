@@ -656,5 +656,56 @@ console.log('12. Codex (OpenAI) limits');
 }
 
 for (const h of homes) rmSync(h, { recursive: true, force: true });
+console.log('13. SPEC criteria not covered above (see SPEC.md)');
+{
+  // reset `inS` seconds from the real current time (the suite runs for minutes: `now` is stale here)
+  const lim = (h5, inS) => JSON.stringify({ ...JSON.parse(input(null, null)), rate_limits: { five_hour: { used_percentage: h5, resets_at: Math.floor(Date.now() / 1000) + inS } } });
+  // C1: 42% with the reset in 2 hours → 42%, reset time, "2h"
+  const h1 = newHome({ language: 'it' });
+  const o1 = strip(run(h1, SL, [], lim(42, 7200 + 30)).stdout).split('\n').find(l => l.startsWith('5h')) || '';
+  check(/ 42%  reset \d\d:\d\d \(tra 2h/.test(o1), 'C1: 42% with reset in 2h shows 42%, the reset time and "2h"');
+  // C2: bar green below 50, yellow from 50, red from 80 (the % itself uses a smooth gradient)
+  const pctColour = p => {
+    const h = newHome({ language: 'it', colors: 'truecolor' });
+    const line = run(h, SL, [], lim(p, 9000)).stdout.split('\n').find(l => strip(l).startsWith('5h')) || '';
+    const m = line.match(/5h\x1b\[0m \x1b\[38;2;(\d+;\d+;\d+)m/);
+    return m && m[1];
+  };
+  check(pctColour(30) === '80;200;120' && pctColour(55) === '235;190;60' && pctColour(85) === '235;85;85', 'C2: bar green at 30%, yellow at 55%, red at 85%');
+  // C7: half of the 5h window gone: 20% → plenty of room, 50% → on pace, 80% → burning fast
+  const paceOf = p => strip(run(newHome({ language: 'it' }), SL, [], lim(p, 9000)).stdout).split('\n').find(l => l.startsWith('5h')) || '';
+  check(paceOf(20).includes('margine ampio') && paceOf(50).includes('nella media') && paceOf(80).includes('consumi in fretta'), 'C7: pace at half window: 20% plenty of room, 50% on pace, 80% burning fast');
+  // C20: from Codex files only the limit lines are read, never the messages
+  const h20 = newHome({ language: 'it' });
+  const dir = join(h20, '.codex', 'sessions', '2026', '11', '17');
+  mkdirSync(dir, { recursive: true });
+  const ts = new Date((now - 60) * 1000).toISOString();
+  const lines = [
+    { timestamp: ts, type: 'response_item', payload: { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'SEGRETO-12345 "token_count" "rate_limits" used_percent 77' }] } },
+    { timestamp: ts, type: 'event_msg', payload: { type: 'token_count', info: null, rate_limits: { limit_id: 'codex', primary: { used_percent: 12, window_minutes: 300, resets_at: now + 3600 }, secondary: null, plan_type: 'plus' } } },
+    { timestamp: ts, type: 'response_item', payload: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'SEGRETO-67890' }] } },
+  ];
+  writeFileSync(join(dir, 'rollout-2026-11-17T10-00-00-c20.jsonl'), lines.map(l => JSON.stringify(l)).join('\n') + '\n');
+  const E20 = { CODEX_HOME: join(h20, '.codex') };
+  const o20 = run(h20, SL, [], input(10, 10), E20).stdout + run(h20, REPORT, [], '', E20).stdout;
+  let cache20 = '';
+  try { cache20 = readFileSync(join(h20, '.claude', 'state', 'limiti-codex.json'), 'utf8'); } catch {}
+  check(strip(o20).includes(' 12%') && !strip(o20).includes('77%') && !(o20 + cache20).includes('SEGRETO'), 'C20: Codex limits read, message text never shown or stored');
+  // C35: turning scheduled_reset off (or removing) cancels the reset notifications still waiting
+  const h35 = newHome({ language: 'it', scheduled_reset: true });
+  const f35 = join(h35, 'schedules.txt');
+  const read35 = f => (existsSync(f) ? readFileSync(f, 'utf8') : '');
+  run(h35, SET, ['scheduled_reset', 'no'], '', { LIMITI_SCHEDULE_FILE: f35 });
+  check(read35(f35).includes('cancel claude-limiti reset *'), 'C35: scheduled_reset turned off → waiting reset tasks cancelled');
+  const h35b = newHome({ language: 'it', scheduled_reset: true });
+  const f35b = join(h35b, 'schedules.txt');
+  run(h35b, SET, ['notifiche', 'no'], '', { LIMITI_SCHEDULE_FILE: f35b });
+  check(!existsSync(f35b), 'C35: changing another setting cancels nothing');
+  const h35c = newHome({ language: 'it' });
+  const f35c = join(h35c, 'schedules.txt');
+  run(h35c, INSTALL, [], '', { LIMITI_SCHEDULE_FILE: f35c });
+  run(h35c, INSTALL, ['--remove'], '', { LIMITI_SCHEDULE_FILE: f35c });
+  check(read35(f35c).includes('cancel claude-limiti reset *'), 'C35: --remove cancels waiting reset tasks');
+}
 console.log(`\n${ok} checks passed, ${ko} failed.`);
 process.exit(ko ? 1 : 0);

@@ -177,3 +177,18 @@ export function writeAtomic(file, data) {
     }
   }
 }
+
+// Cancels the one-time reset notifications still waiting (setting "scheduled_reset", Windows).
+// Used when the setting is turned off and on uninstall (SPEC C35).
+// Test hook: LIMITI_SCHEDULE_FILE gets a "cancel" line instead.
+export async function cancelScheduledResets() {
+  if (process.env.LIMITI_SCHEDULE_FILE) {
+    const { appendFileSync } = await import('node:fs');
+    try { appendFileSync(process.env.LIMITI_SCHEDULE_FILE, 'cancel claude-limiti reset *\n'); } catch {}
+    return;
+  }
+  if (process.platform !== 'win32') return;
+  const { spawnSync } = await import('node:child_process');
+  const ps = join(process.env.SystemRoot || 'C:\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  spawnSync(ps, ['-NoProfile', '-NonInteractive', '-Command', "Get-ScheduledTask -TaskName 'claude-limiti reset *' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false"], { stdio: 'ignore', windowsHide: true, timeout: 20000 });
+}

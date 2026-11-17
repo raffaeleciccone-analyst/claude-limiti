@@ -195,8 +195,11 @@ history stay in `~/.claude`: delete them by hand if you do not need them.
 
 ## Development
 
+The project follows spec-driven development: [SPEC.md](SPEC.md) says what it must do (features, non-goals,
+acceptance criteria), [PIANO.md](PIANO.md) how it does it and which test checks each criterion (both in Italian).
+
 ```
-node test/test.mjs           # 226 checks, all in temporary folders
+node test/test.mjs           # 289 checks, all in temporary folders
 node tools/preview-svg.mjs   # regenerates the images in docs/
 ```
 

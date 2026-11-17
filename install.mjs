@@ -16,7 +16,7 @@ const { join, dirname } = await import('node:path');
 const { homedir } = await import('node:os');
 const { fileURLToPath } = await import('node:url');
 const { execFileSync } = await import('node:child_process');
-const { CLAUDE_DIR, loadConfig, detectLanguage, writeAtomic } = await import('./limiti/common.mjs');
+const { CLAUDE_DIR, loadConfig, detectLanguage, writeAtomic, cancelScheduledResets } = await import('./limiti/common.mjs');
 const { CODEX_DIR } = await import('./limiti/codex.mjs');
 
 const T = {
@@ -148,12 +148,7 @@ if (remove) {
   }
   if (existsSync(DEST) || isLink(DEST)) { rmSync(DEST, { recursive: true, force: true }); console.log(L.removedSkill(DEST)); }
   if (isOurs(CODEX_DEST)) { rmSync(CODEX_DEST, { recursive: true, force: true }); console.log(L.codexRemoved(CODEX_DEST)); }
-  if (process.platform === 'win32' && !process.env.LIMITI_SCHEDULE_FILE) {
-    // scheduled reset notifications still waiting
-    const { spawnSync } = await import('node:child_process');
-    const ps = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-    spawnSync(ps, ['-NoProfile', '-NonInteractive', '-Command', "Get-ScheduledTask -TaskName 'claude-limiti reset *' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false"], { stdio: 'ignore', windowsHide: true, timeout: 20000 });
-  }
+  await cancelScheduledResets(); // scheduled reset notifications still waiting (SPEC C35)
   // On Windows the running node.exe is locked: install.ps1 deletes the folder once Node has exited
   if (existsSync(RUNTIME) && !(portable && process.platform === 'win32')) {
     // The private Node: removable unless it is the one running right now (Windows locks it)

@@ -198,8 +198,11 @@ storico restano in `~/.claude`: cancellali a mano se non ti servono.
 
 ## Sviluppo
 
+Il progetto segue il metodo "coding by spec": [SPEC.md](SPEC.md) dice cosa deve fare (funzioni, cosa non fa,
+criteri di controllo), [PIANO.md](PIANO.md) come lo fa e quale test controlla ogni criterio.
+
 ```
-node test/test.mjs           # 226 controlli, tutti in cartelle temporanee
+node test/test.mjs           # 289 controlli, tutti in cartelle temporanee
 node tools/preview-svg.mjs   # rigenera le immagini in docs/
 ```
 
