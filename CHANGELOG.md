@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 — 2026-11-18
+
+- New: the **usage-limits mod** (`mod/`), for the VS Code panel where the status line does not run.
+  Install: `/plugin install usage-limits --marketplace raffaeleciccone-analyst/claude-limiti`.
+  A status entry only from the first threshold, a `/usage-limits` pane with coloured bars, pop-up alerts
+  at 80%/95% and at the reset (once across sessions). Works on its own; never raises system notifications.
+- Spec: F15 and criteria C29–C32, C36, C37; 12 mod tests (`claude plugin test mod`).
+
 ## 1.3.2 — 2026-11-17
 
 - Spec-driven: `SPEC.md` (what it does, what it does not, 35 acceptance criteria) and `PIANO.md` (how, and

@@ -53,7 +53,7 @@ prima di finirli.
   (messaggio a comparsa nella finestra) quando passi una soglia o il limite si azzera. Non sostituisce la
   barra: la barra resta la status line (un mod non può sostituirla). Si installa con `/plugin install`.
   Nel pannello grafico di VS Code (dove la status line non c'è) il mod è l'unico modo di vedere i limiti:
-  riga di stato con i limiti + riquadro + avvisi. [verificato 17/11]
+  riga di stato (solo sopra la prima soglia, C37) + riquadro `/usage-limits` + avvisi. [verificato 17/11]
 
 ## 3b. Da dove arrivano i dati
 - D1. Claude Code passa alla status line, dopo ogni risposta, i limiti dell'account (percentuale e ora
@@ -124,11 +124,16 @@ Ogni criterio è (o diventa) un test automatico in `test/test.mjs`. "Finito" = t
 
 **Mod usage-limits (F15)** — test da scrivere quando si inizia F15
 - C29 (F15). Passo l'80% → dentro Claude Code compare un avviso "Limite 5 ore all'80%", una volta sola anche con due finestre aperte.
-- C30 (F15). Il limite si azzera mentre Claude Code è aperto → avviso "Limite 5 ore azzerato", una volta sola.
+- C30 (F15). Il limite 5 ore era all'85% e si azzera mentre Claude Code è aperto → avviso "Limite 5 ore azzerato",
+  una volta sola. Se era sotto la prima soglia (es. 30%) → nessun avviso (come la barra, F4).
 - C32 (F15, F4). Nel terminale, mod e status line installati, passo l'80% → arrivano la notifica di Windows E l'avviso
   dentro Claude Code, ciascuno una volta sola (non due notifiche di Windows).
 - C36 (F15). Pannello grafico di VS Code (dove la barra non c'è), passo l'80% → avviso dentro il pannello e
   riga di stato con i limiti; nessun errore se la notifica di Windows non è disponibile lì. [verificato fattibile 17/11]
+- C37 (F15). La riga di stato del mod compare **solo quando serve** [deciso 17/11]: con 5h al 40% e 7g al 57% →
+  nessuna riga; con 5h all'85% → `5h 85% · reset 23:10 │ 7g 57% · reset mar 22:00`, parole e finestre ben
+  separate anche dove gli spazi doppi vengono ridotti (VS Code); quando torna sotto la soglia → la riga sparisce.
+  I limiti completi restano nel riquadro `/usage-limits`.
 - C31 (F15). Installo il mod senza la status line (o il contrario) → ognuno funziona da solo, nessun errore.
 
 **Installazione (F12)**

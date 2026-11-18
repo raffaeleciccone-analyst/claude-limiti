@@ -104,15 +104,63 @@ Dove sta il test di ogni criterio (sezione e nome in `test/test.mjs`):
 | C23 | §7 `diagnostics: reset at :20… not false alarms`, `moving reset time… still detected` |
 | C24 | §4 `control characters from the input are removed`, `malicious branch name is cleaned` |
 | C35 | §13 `C35: scheduled_reset turned off…`, `--remove cancels…` (solo la parte Windows esistente) |
-| C25–C34 | da scrivere quando si iniziano F14, F15, F5 su macOS/Linux |
+| C29 | `mod/hooks/criteria.test.tsx`: `C29: crossing 80%…`, `first seen at 97%…`, `already given by another session…` |
+| C30 | mod: `C30: a window at 85% that resets…`, `a window at 30%… no alert` |
+| C31 | mod: `C31: works on its own…` |
+| C32 | mod: `C32: the mod never raises a Windows notification` |
+| C36 | mod: `C36: in the VS Code panel the pane draws…`, `the /usage-limits command opens the pane`, `C36 + C2: … progress bar` |
+| C37 | mod: `C37: the status entry shows only above the first threshold…` |
+| C25–C28, C33–C34 | da scrivere quando si iniziano F14 e F5 su macOS/Linux |
 
 Prova che i test valgono (17/11): soglia del rosso spostata da 80 a 90 → fallisce solo C2; ripristinato.
+Mod: tolta la condizione "solo sopra soglia" della riga di stato → falliscono C37 e C36; ripristinato.
 
-## 6. Da fare
+## 6. F15 — mod "usage-limits" (piano del 17/11)
+
+**Dove sta.** Nello stesso repository, cartella `mod/` (il plugin) + `.claude-plugin/marketplace.json` alla
+radice, così si installa con `/plugin install usage-limits --marketplace raffaeleciccone-analyst/claude-limiti`.
+Motivo: F15 "si installa con /plugin install"; un solo repository da tenere.
+
+```
+mod/.claude-plugin/plugin.json   nome, versione, impostazioni (soglie, lingua)
+mod/hooks/hooks.json             punta a register.tsx
+mod/hooks/register.tsx           eventi: session.start, session.measure, command.run, ui.render (Pane)
+mod/hooks/logic.ts               funzioni pure: testo della riga, quali soglie avvisare, testi it/en
+mod/types/index.d.ts             il valore condiviso che il riquadro legge (per ridisegnarsi)
+mod/hooks/*.test.tsx             test dei criteri C29–C32, C36, C37 (claude plugin test mod)
+```
+
+**Ingresso dei dati.** L'evento `session.measure` del motore: `rateLimits = [{ kind, percentUsed, resetsAt }]`.
+Motivo: verificato il 17/11 che arriva anche nel pannello di VS Code (Q6, C36); non dipende dalla status line (C31).
+
+### Scelte e motivi
+- **Riga di stato solo dalla prima soglia** (`$.ui.status`, `undefined` la toglie), es.
+  `5h 85% · reset 23:10 │ 7g 57% · reset mar 22:00`: spazi singoli e `│` tra le finestre, perché VS Code
+  stringe gli spazi doppi. Motivo: C37 (decisione dell'utente 17/11 dopo la prova dal vivo); sotto soglia i
+  limiti stanno nel riquadro.
+- **Riquadro con `Progress`** (barra vera) colorata come la barra: verde, gialla dal 50%, rossa dall'80%.
+  Motivo: C36 + C2; le barre di testo nel pannello di VS Code uscivano come una riga sottile (prova 17/11).
+- **Riquadro aperto solo a richiesta** con il comando `/usage-limits`, non da solo. Motivo: non disturbare chi
+  usa già la barra nel terminale (proposta di Claude, coerente con "chi non vuole non vede").
+- **Avvisi a comparsa (`$.ui.toast`) alle soglie**: stessa regola della barra — per ogni finestra la soglia più
+  alta superata, una volta per finestra (chiave `finestra + ora del reset + soglia`), le soglie più basse segnate
+  insieme (arrivo a 97% → un solo avviso). Motivo: C29, coerenza con C12.
+- **"Una volta sola anche con due finestre aperte"**: le chiavi degli avvisi già dati stanno in `$.store`
+  (un file del mod condiviso da tutte le sessioni). Limite noto: due sessioni che ricevono la stessa misura
+  nello stesso istante potrebbero avvisare entrambe (il `$.store` non ha una scrittura esclusiva); è raro
+  perché ogni sessione misura dopo le proprie risposte. Motivo: C29.
+- **Avviso di azzeramento**: alla misura si programma un timer (`$.clock.after`) all'ora del reset; scatta solo
+  se la finestra era almeno alla prima soglia, una volta sola (stessa chiave in `$.store`). Motivo: C30.
+- **Il mod non manda MAI notifiche di Windows** (`$.ui.notify`): nel terminale le manda già la barra, in VS Code
+  non sono possibili. Motivo: C32 (niente doppioni), Q6/C36.
+- **Soglie e lingua** come impostazioni del mod (`userConfig`): soglie predefinite `80,95`, lingua `auto`
+  (dalla lingua del sistema). Motivo: F4 "soglie predefinite 80% e 95%", F10. Il mod non legge i file della
+  barra: funziona anche da solo (C31).
+
+## 7. Da fare
 - [ ] **F14 barra dentro Codex**: aspettare una versione stabile di Codex con `status_line_provider` (PR del 17/11,
       vedi HANDOFF.md). Poi: piccolo server MCP in Node, stesso disegno della barra, test C25–C28.
-- [ ] **F15 mod usage-limits**: Q6 verificata (sì, nel pannello di VS Code funziona; notifica di Windows no). Test C29–C32, C36.
-      Riquadro: usare un valore reattivo (`atom`) perché si ridisegni quando arrivano i limiti (la prova non lo faceva).
+- [x] **F15 mod usage-limits** (18/11, v1.4.0): 12 test (C29–C32, C36, C37), provato dal vivo nel pannello di VS Code.
 - [ ] **F5 su macOS (launchd) e Linux (systemd-run)**: test C33–C35 per quei sistemi; prova reale su Linux con
       Docker Desktop (va acceso).
 - [ ] Scheda gratis su Agensi (cartella `agensi/`, serve un account).

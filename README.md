@@ -131,6 +131,24 @@ columns wide and overlap the text), so everything stays aligned.
 - **No notifications on Linux.** Install `notify-send` (package `libnotify-bin` or `libnotify`).
   On Windows they appear as coming from "Windows PowerShell".
 
+## VS Code panel: the usage-limits mod
+
+*New, 0.1.0.* The graphical panel of the VS Code extension has no bar (Claude Code does not run the
+status line there). The **usage-limits** mod shows the limits there too, and works on its own, without the bar:
+
+```
+/plugin install usage-limits --marketplace raffaeleciccone-analyst/claude-limiti
+```
+
+- **status entry** under the chat, only when a limit reaches the first threshold (80%):
+  `5h 85% · reset 23:10 │ 7d 57% · reset Tue 22:00`. Below the threshold it does not show;
+- **pane** with `/usage-limits`: one coloured bar per window (green, yellow from 50%, red from 80%);
+- **pop-up alerts** at the thresholds (80% and 95%, once even with several windows open) and when a
+  limit that was high resets.
+
+It raises no Windows notifications: in the terminal the bar already does. Thresholds and language are
+in the plugin settings (`/plugin`).
+
 ## Codex (OpenAI)
 
 *Experimental: tested on 2026-11-10 with Codex 0.167 (Free plan, Windows app): real data read,
@@ -200,6 +218,7 @@ acceptance criteria), [PIANO.md](PIANO.md) how it does it and which test checks 
 
 ```
 node test/test.mjs           # 289 checks, all in temporary folders
+claude plugin test mod       # 12 tests of the usage-limits mod
 node tools/preview-svg.mjs   # regenerates the images in docs/
 ```
 

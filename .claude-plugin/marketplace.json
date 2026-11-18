@@ -1,0 +1,7 @@
+{
+  "name": "claude-limiti",
+  "owner": { "name": "Raffaele Ciccone" },
+  "plugins": [
+    { "name": "usage-limits", "source": "./mod", "description": "Usage limits as a status entry, a pane and alerts, also in the VS Code panel." }
+  ]
+}
